@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>LUXENAME — Mobile Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">♛ <span>LUXENAME</span><small>ENGRAVE YOUR STORY</small></div>
+    <button class="bag" onclick="show('cart')">🛒 <b id="count">0</b></button>
+  </header>
+
+  <main>
+    <section id="home" class="screen active">
+      <div class="hero">
+        <div class="hero-img"></div>
+        <div class="hero-text">
+          <small>PERSONALIZED JEWELRY</small>
+          <h1>สลักชื่อ<br><em>สร้อยคอ</em><br>ในแบบของคุณ</h1>
+          <p>สร้างสร้อยคอที่มีความหมายสำหรับคุณ</p>
+          <button onclick="show('custom')">✦ ออกแบบเลย</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="products" class="screen">
+      <div class="title"><small>OUR COLLECTION</small><h2>สินค้า</h2></div>
+      <div class="product-list">
+        <button class="product" onclick="selectMetal('silver');show('custom')"><div class="pic silver">Your Name</div><b>Silver Classic</b><span>฿890</span></button>
+        <button class="product" onclick="selectMetal('gold');show('custom')"><div class="pic gold">Your Name</div><b>Gold Elegant</b><span>฿1,190</span></button>
+        <button class="product" onclick="selectMetal('black');show('custom')"><div class="pic black">Your Name</div><b>Black Luxury</b><span>฿990</span></button>
+        <button class="product" onclick="selectMetal('rose');show('custom')"><div class="pic rose">Your Name</div><b>Rose Gold</b><span>฿1,090</span></button>
+      </div>
+    </section>
+
+    <section id="custom" class="screen">
+      <div class="title"><small>MAKE IT YOURS</small><h2>ออกแบบชื่อ</h2></div>
+      <div class="preview"><span id="preview">Your Name</span></div>
+      <div class="form">
+        <label>ชื่อที่ต้องการสลัก</label>
+        <input id="name" maxlength="20" placeholder="เช่น Natcha, Aom, T♡M" oninput="update()">
+        <label>วัสดุ</label>
+        <div class="choices">
+          <button data-metal="silver" onclick="selectMetal('silver')">◉<small>Silver</small></button>
+          <button data-metal="gold" onclick="selectMetal('gold')">◉<small>Gold</small></button>
+          <button data-metal="black" onclick="selectMetal('black')">●<small>Black</small></button>
+          <button data-metal="rose" onclick="selectMetal('rose')">●<small>Rose Gold</small></button>
+        </div>
+        <label>ฟอนต์</label>
+        <div class="choices fonts">
+          <button class="selected" onclick="font('serif')">Aa<small>Classic</small></button>
+          <button onclick="font('cursive')">𝒜𝒶<small>Elegant</small></button>
+          <button onclick="font('cursive')">𝓕𝓪<small>Signature</small></button>
+          <button onclick="font('Arial')">Aa<small>Modern</small></button>
+        </div>
+      </div>
+      <button class="add" onclick="add()">เพิ่มลงตะกร้า <span>฿<b id="price">890</b></span></button>
+    </section>
+
+    <section id="cart" class="screen">
+      <div class="title"><small>YOUR ORDER</small><h2>ตะกร้า</h2></div>
+      <div id="items" class="items">ยังไม่มีสินค้า</div>
+      <button class="checkout" onclick="checkout()">สั่งซื้อ Demo</button>
+      <p class="note">ไม่มีการตัดเงินจริง • Test Demo</p>
+    </section>
+
+    <section id="about" class="screen">
+      <div class="title"><small>ABOUT LUXENAME</small><h2>เกี่ยวกับเรา</h2></div>
+      <div class="about-card"><b>วัสดุพรีเมียม</b><p>สแตนเลส 316L คุณภาพดี</p><b>สลักด้วยเลเซอร์</b><p>คมชัดและอยู่กับคุณทุกวัน</p><b>จัดส่งทั่วประเทศ</b><p>ฟรีเมื่อครบ 790 บาท</p></div>
+    </section>
+  </main>
+
+  <nav class="bottom">
+    <button onclick="show('home')">⌂<small>หน้าแรก</small></button>
+    <button onclick="show('products')">◇<small>สินค้า</small></button>
+    <button class="main" onclick="show('custom')">✦<small>ออกแบบ</small></button>
+    <button onclick="show('cart')">🛒<small>ตะกร้า</small></button>
+    <button onclick="show('about')">◎<small>เกี่ยวกับเรา</small></button>
+  </nav>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
