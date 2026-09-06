@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUXENAME — Admin ออเดอร์</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- ============== LOGIN ============== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand">♛ LUXENAME <small>ADMIN</small></div>
+    <p class="sub">เข้าสู่ระบบสำหรับผู้ดูแลร้านเท่านั้น</p>
+    <div id="config-warning">
+      ⚠️ ยังไม่ได้ใส่ SUPABASE_URL / SUPABASE_ANON_KEY ใน <code>supabase-config.js</code> — ใส่ค่าที่นั่นก่อน (ไฟล์เดียวกับที่ใช้ในหน้าร้าน)
+    </div>
+    <form id="login-form">
+      <div class="field">
+        <label for="email">อีเมล</label>
+        <input type="email" id="email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">รหัสผ่าน</label>
+        <input type="password" id="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="primary" id="login-btn">เข้าสู่ระบบ</button>
+      <div id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ============== DASHBOARD ============== -->
+<div id="dashboard">
+  <header>
+    <div class="brand">♛ LUXENAME <small>ADMIN</small></div>
+    <h1><span class="dot"></span>ออเดอร์ล่าสุด</h1>
+    <div class="right">
+      <span class="email" id="user-email"></span>
+      <button class="logout" id="logout-btn">ออกจากระบบ</button>
+    </div>
+  </header>
+  <main>
+    <div class="stats">
+      <div class="stat"><span class="k">ออเดอร์ทั้งหมด</span><span class="v" id="stat-count">0</span></div>
+      <div class="stat"><span class="k">ยอดขายรวม</span><span class="v" id="stat-total">฿0</span></div>
+      <div class="stat"><span class="k">วันนี้</span><span class="v" id="stat-today">0 ออเดอร์</span></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="search-input" placeholder="ค้นหาชื่อ, เบอร์โทร, ที่อยู่...">
+    </div>
+    <div id="order-count"></div>
+    <div id="orders-list"></div>
+    <div id="empty-state" style="display:none;">ยังไม่มีออเดอร์เข้ามา — เมื่อลูกค้าสั่งซื้อจะขึ้นที่นี่ทันที</div>
+    <div id="load-error" style="display:none;"></div>
+  </main>
+</div>
+
+<div id="lightbox">
+  <img id="lightbox-img" src="" alt="สลิปโอนเงิน">
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
