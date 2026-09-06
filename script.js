@@ -53,7 +53,9 @@ async function confirmPayment(){
   btn.disabled=true;
   status.textContent="กำลังบันทึกคำสั่งซื้อ...";
   try{
-    const ext=(slipFile.name.split(".").pop()||"jpg").toLowerCase();
+    const mimeExt={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/heic":"heic","image/heif":"heif","image/gif":"gif"};
+    const nameMatch=slipFile.name.match(/\.(jpg|jpeg|png|webp|heic|heif|gif)$/i);
+    const ext=mimeExt[slipFile.type]||(nameMatch?nameMatch[1].toLowerCase():"jpg");
     const path=`slip-${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
     const{error:upErr}=await sb.storage.from("slips").upload(path,slipFile);
     if(upErr)throw upErr;
