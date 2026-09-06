@@ -12,7 +12,11 @@ header{height:62px;background:#080808;color:white;display:flex;align-items:cente
 .slip-preview-wrap{display:flex;align-items:center;gap:10px;margin-top:10px}
 .slip-preview{width:56px;height:56px;object-fit:cover;border-radius:7px;border:1px solid #ddd}
 .slip-name{font-size:11px;color:#666;word-break:break-all}
+.cust-box{background:#fff;border:1px solid #e6e2da;border-radius:12px;padding:14px;margin-top:14px}
+.cust-box input,.cust-box textarea{margin-bottom:4px}
+.cust-box textarea{width:100%;padding:11px;border:1px solid #ddd;border-radius:7px;font-size:14px;font-family:inherit;resize:vertical}
 .confirm-pay{background:#d8ae59}.confirm-pay:disabled{background:#e8dcc3;color:#a99a76}
+.pay-status{text-align:center;font-size:12px;color:#b3492f;min-height:16px;margin:10px 0 0}
 .success-wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:0 10px}
 .success-icon{width:64px;height:64px;border-radius:50%;background:#1c8a4a;color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;margin-bottom:6px}
 .success-wrap h2{margin:0;font-size:22px}.success-wrap p{color:#777;font-size:13px;margin:0 0 14px}.success-wrap .checkout{width:auto;padding:14px 30px}.bottom{position:absolute;bottom:0;left:0;right:0;height:68px;background:#080808;display:grid;grid-template-columns:repeat(5,1fr);z-index:6}.bottom button{border:0;background:none;color:#aaa;font-size:19px}.bottom small{display:block;font-size:8px;margin-top:3px}.bottom .main{color:#d8ae59}.bottom button:active{background:#222}

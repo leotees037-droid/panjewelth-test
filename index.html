@@ -98,6 +98,14 @@
         <p class="pay-amount">ยอดที่ต้องชำระ <b id="payAmount">฿0</b></p>
         <p class="pay-note">PromptPay Demo • ไม่มีการตัดเงินจริง</p>
       </div>
+      <div class="cust-box">
+        <label>ชื่อ-นามสกุลผู้สั่งซื้อ</label>
+        <input id="custName" placeholder="เช่น สมชาย ใจดี">
+        <label>เบอร์โทรศัพท์</label>
+        <input id="custPhone" type="tel" placeholder="เช่น 0891234567">
+        <label>ที่อยู่จัดส่ง</label>
+        <textarea id="custAddress" rows="3" placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"></textarea>
+      </div>
       <div class="slip-box">
         <label>แนบสลิปการโอนเงิน</label>
         <input type="file" id="slipInput" accept="image/*" onchange="uploadSlip(event)">
@@ -107,6 +115,7 @@
         </div>
       </div>
       <button class="checkout confirm-pay" id="confirmBtn" onclick="confirmPayment()" disabled>ยืนยันการชำระเงิน</button>
+      <p id="payStatus" class="pay-status"></p>
     </section>
 
     <section id="success" class="screen">
@@ -133,6 +142,8 @@
   </nav>
 </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
