@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="phone">
+<div class="notch"></div>
 <div class="app">
   <header>
     <div class="brand">♛ <span>LUXENAME</span><small>ENGRAVE YOUR STORY</small></div>
@@ -63,8 +65,57 @@
     <section id="cart" class="screen">
       <div class="title"><small>YOUR ORDER</small><h2>ตะกร้า</h2></div>
       <div id="items" class="items">ยังไม่มีสินค้า</div>
-      <button class="checkout" onclick="checkout()">สั่งซื้อ Demo</button>
+      <div id="cartTotal" class="cart-total" style="display:none">ยอดรวม <b id="totalPrice">฿0</b></div>
+      <button class="checkout" onclick="goToPayment()">สั่งซื้อ</button>
       <p class="note">ไม่มีการตัดเงินจริง • Test Demo</p>
+    </section>
+
+    <section id="payment" class="screen">
+      <div class="title"><small>PAYMENT</small><h2>ชำระเงิน</h2></div>
+      <div class="pay-card">
+        <p class="pay-label">สแกน QR เพื่อชำระผ่าน PromptPay</p>
+        <div class="qr-demo">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="200" fill="#fff"/>
+            <g fill="#111">
+              <rect x="10" y="10" width="50" height="50"/><rect x="20" y="20" width="30" height="30" fill="#fff"/><rect x="28" y="28" width="14" height="14"/>
+              <rect x="140" y="10" width="50" height="50"/><rect x="150" y="20" width="30" height="30" fill="#fff"/><rect x="158" y="28" width="14" height="14"/>
+              <rect x="10" y="140" width="50" height="50"/><rect x="20" y="150" width="30" height="30" fill="#fff"/><rect x="28" y="158" width="14" height="14"/>
+              <rect x="70" y="10" width="8" height="8"/><rect x="86" y="10" width="8" height="8"/><rect x="102" y="18" width="8" height="8"/><rect x="118" y="10" width="8" height="8"/>
+              <rect x="70" y="26" width="8" height="8"/><rect x="94" y="34" width="8" height="8"/><rect x="110" y="34" width="8" height="8"/><rect x="126" y="26" width="8" height="8"/>
+              <rect x="78" y="50" width="8" height="8"/><rect x="94" y="58" width="8" height="8"/><rect x="118" y="50" width="8" height="8"/>
+              <rect x="10" y="70" width="8" height="8"/><rect x="26" y="78" width="8" height="8"/><rect x="42" y="70" width="8" height="8"/><rect x="10" y="94" width="8" height="8"/>
+              <rect x="30" y="102" width="8" height="8"/><rect x="46" y="110" width="8" height="8"/><rect x="10" y="118" width="8" height="8"/>
+              <rect x="70" y="70" width="10" height="10"/><rect x="90" y="70" width="10" height="10"/><rect x="70" y="90" width="10" height="10"/><rect x="110" y="80" width="10" height="10"/>
+              <rect x="130" y="70" width="8" height="8"/><rect x="150" y="78" width="8" height="8"/><rect x="170" y="70" width="8" height="8"/><rect x="130" y="94" width="8" height="8"/>
+              <rect x="150" y="102" width="8" height="8"/><rect x="170" y="94" width="8" height="8"/><rect x="130" y="118" width="8" height="8"/>
+              <rect x="70" y="150" width="8" height="8"/><rect x="86" y="158" width="8" height="8"/><rect x="102" y="150" width="8" height="8"/><rect x="118" y="166" width="8" height="8"/>
+              <rect x="150" y="140" width="8" height="8"/><rect x="166" y="150" width="8" height="8"/><rect x="150" y="166" width="8" height="8"/><rect x="180" y="140" width="8" height="8"/>
+              <rect x="166" y="180" width="8" height="8"/><rect x="182" y="166" width="8" height="8"/>
+            </g>
+          </svg>
+        </div>
+        <p class="pay-amount">ยอดที่ต้องชำระ <b id="payAmount">฿0</b></p>
+        <p class="pay-note">PromptPay Demo • ไม่มีการตัดเงินจริง</p>
+      </div>
+      <div class="slip-box">
+        <label>แนบสลิปการโอนเงิน</label>
+        <input type="file" id="slipInput" accept="image/*" onchange="uploadSlip(event)">
+        <div id="slipPreviewWrap" class="slip-preview-wrap" style="display:none">
+          <img id="slipPreview" class="slip-preview">
+          <span id="slipName" class="slip-name"></span>
+        </div>
+      </div>
+      <button class="checkout confirm-pay" id="confirmBtn" onclick="confirmPayment()" disabled>ยืนยันการชำระเงิน</button>
+    </section>
+
+    <section id="success" class="screen">
+      <div class="success-wrap">
+        <div class="success-icon">✓</div>
+        <h2>ชำระเงินสำเร็จ</h2>
+        <p>ขอบคุณสำหรับคำสั่งซื้อ (Demo) เราจะเริ่มสลักชื่อของคุณและจัดส่งเร็ว ๆ นี้</p>
+        <button class="checkout" onclick="backToHome()">กลับหน้าแรก</button>
+      </div>
     </section>
 
     <section id="about" class="screen">
@@ -80,6 +131,7 @@
     <button onclick="show('cart')">🛒<small>ตะกร้า</small></button>
     <button onclick="show('about')">◎<small>เกี่ยวกับเรา</small></button>
   </nav>
+</div>
 </div>
 <script src="script.js"></script>
 </body>
