@@ -122,11 +122,8 @@
 
     <!-- รูปภาพ -->
     <div id="manage-images" class="manage-pane">
-      <div id="manage-images-list" class="manage-images-list"></div>
-      <form id="image-form" class="inline-add-form">
-        <input id="img-url" type="url" placeholder="วางลิงก์รูปภาพ (https://...)" required>
-        <button type="submit" class="primary">+ เพิ่มรูป</button>
-      </form>
+      <p class="hint-text">อัปโหลดรูปสินค้าได้สูงสุด 10 รูป — คลิกช่องว่างเพื่ออัปโหลด, คลิก ✕ เพื่อลบ (อัปโหลดซ้ำในช่องเดิมจะแทนที่รูปเก่า)</p>
+      <div id="manage-images-list" class="img-slots-grid"></div>
     </div>
 
     <!-- ตัวเลือก -->
@@ -136,6 +133,7 @@
         <input id="og-name" placeholder="ชื่อกลุ่มตัวเลือกใหม่ เช่น สี, ขนาด" required>
         <button type="submit" class="primary">+ เพิ่มกลุ่มตัวเลือก</button>
       </form>
+      <p id="option-group-limit-note" class="hint-text" style="display:none;">ครบ 3 กลุ่มตัวเลือกแล้ว (ลบกลุ่มใดกลุ่มหนึ่งก่อนถ้าต้องการเพิ่มใหม่)</p>
     </div>
 
     <!-- ตัวแปรสินค้า -->

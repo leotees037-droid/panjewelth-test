@@ -22,6 +22,13 @@ header{height:62px;background:#080808;color:white;display:flex;align-items:cente
 .option-values button{
   border:1px solid #ddd;background:#fff;border-radius:999px;
   padding:8px 14px;font-size:12.5px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.swatch-thumb{
+  width:20px;height:20px;border-radius:50%;
+  background-size:cover;background-position:center;
+  border:1px solid rgba(0,0,0,.1);
+  flex:0 0 auto;
 }
 .option-values button.selected{border:2px solid #c99d4d;font-weight:700}
 .option-values button:disabled{opacity:.4;cursor:not-allowed;text-decoration:line-through}

@@ -259,10 +259,10 @@ async function loadProducts() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
-      product_images ( id, url, sort_order ),
+      product_images ( id, url, storage_path, sort_order ),
       product_options (
         id, name, sort_order,
-        product_option_values ( id, value, sort_order )
+        product_option_values ( id, value, sort_order, image_url, storage_path )
       ),
       product_variants (
         id, sku, price, stock, image_url, active,
@@ -469,55 +469,98 @@ function switchManageTab(tab) {
   });
 }
 
-/* ---------------- รูปภาพ ---------------- */
+/* ---------------- รูปภาพ (อัปโหลดตรงเข้า Supabase Storage, 10 ช่องต่อสินค้า) ---------------- */
+const MAX_IMAGE_SLOTS = 10;
+
 function renderManageImages() {
   const wrap = $("#manage-images-list");
-  const images = currentManageProduct.images;
-  if (!images.length) {
-    wrap.innerHTML = `<p class="hint-text">ยังไม่มีรูปสินค้า — เพิ่มลิงก์รูปด้านล่าง</p>`;
-  } else {
-    wrap.innerHTML = images.map(img => `
-      <div class="manage-image-row" data-id="${img.id}">
-        <img src="${escapeHtml(img.url)}" alt="">
-        <input type="number" class="img-sort" value="${img.sort_order}" title="ลำดับการแสดงผล">
-        <button type="button" class="danger img-remove">ลบ</button>
-      </div>
-    `).join("");
-  }
+  const bySlot = {};
+  currentManageProduct.images.forEach(img => { bySlot[img.sort_order] = img; });
 
-  wrap.querySelectorAll(".manage-image-row").forEach(row => {
-    const id = row.dataset.id;
-    row.querySelector(".img-sort").addEventListener("change", async (e) => {
-      await sb.from("product_images").update({ sort_order: Number(e.target.value) || 0 }).eq("id", id);
+  wrap.innerHTML = Array.from({ length: MAX_IMAGE_SLOTS }, (_, i) => {
+    const img = bySlot[i];
+    return img
+      ? `<div class="img-slot filled" data-slot="${i}">
+           <img src="${escapeHtml(img.url)}" alt="">
+           <button type="button" class="slot-remove" data-slot="${i}" title="ลบรูปนี้">✕</button>
+           <label class="slot-replace" title="อัปโหลดแทนที่">
+             เปลี่ยนรูป
+             <input type="file" accept="image/*" class="slot-input" data-slot="${i}" hidden>
+           </label>
+         </div>`
+      : `<label class="img-slot empty" data-slot="${i}">
+           <span>+</span>
+           <input type="file" accept="image/*" class="slot-input" data-slot="${i}" hidden>
+         </label>`;
+  }).join("");
+
+  wrap.querySelectorAll(".slot-input").forEach(input => {
+    input.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) handleSlotUpload(Number(input.dataset.slot), file);
+      input.value = "";
     });
-    row.querySelector(".img-remove").addEventListener("click", async () => {
-      if (!confirm("ลบรูปนี้ใช่หรือไม่?")) return;
-      await sb.from("product_images").delete().eq("id", id);
+  });
+  wrap.querySelectorAll(".slot-remove").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      handleSlotRemove(Number(btn.dataset.slot));
     });
   });
 }
 
-$("#image-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+async function handleSlotUpload(slotIndex, file) {
   if (!currentManageProduct) return;
-  const url = $("#img-url").value.trim();
-  if (!url) return;
-  const nextSort = currentManageProduct.images.length
-    ? Math.max(...currentManageProduct.images.map(i => i.sort_order)) + 1
-    : 0;
-  const { error } = await sb.from("product_images").insert({
-    product_id: currentManageProduct.id, url, sort_order: nextSort
-  });
-  if (error) { alert("เพิ่มรูปไม่สำเร็จ: " + error.message); return; }
-  $("#image-form").reset();
-});
+  if (!file.type.startsWith("image/")) { alert("กรุณาเลือกไฟล์รูปภาพเท่านั้น"); return; }
+
+  const productId = currentManageProduct.id;
+  const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|gif)$/i);
+  const ext = extMatch ? extMatch[1].toLowerCase() : (file.type.split("/")[1] || "jpg");
+  const path = `${productId}/slot-${slotIndex}-${Date.now()}.${ext}`;
+
+  const existing = currentManageProduct.images.find(img => img.sort_order === slotIndex);
+
+  const { error: upErr } = await sb.storage.from("product-images").upload(path, file);
+  if (upErr) { alert("อัปโหลดรูปไม่สำเร็จ: " + upErr.message); return; }
+
+  const { data: urlData } = sb.storage.from("product-images").getPublicUrl(path);
+
+  let dbError;
+  if (existing) {
+    ({ error: dbError } = await sb.from("product_images")
+      .update({ url: urlData.publicUrl, storage_path: path })
+      .eq("id", existing.id));
+  } else {
+    ({ error: dbError } = await sb.from("product_images")
+      .insert({ product_id: productId, url: urlData.publicUrl, storage_path: path, sort_order: slotIndex }));
+  }
+
+  if (dbError) { alert("บันทึกรูปไม่สำเร็จ: " + dbError.message); return; }
+
+  // ลบไฟล์เก่าของช่องนี้ทิ้ง (ถ้ามี) หลังบันทึกไฟล์ใหม่สำเร็จแล้ว
+  if (existing && existing.storage_path && existing.storage_path !== path) {
+    await sb.storage.from("product-images").remove([existing.storage_path]);
+  }
+}
+
+async function handleSlotRemove(slotIndex) {
+  const existing = currentManageProduct.images.find(img => img.sort_order === slotIndex);
+  if (!existing) return;
+  if (!confirm("ลบรูปนี้ใช่หรือไม่?")) return;
+
+  if (existing.storage_path) {
+    await sb.storage.from("product-images").remove([existing.storage_path]);
+  }
+  const { error } = await sb.from("product_images").delete().eq("id", existing.id);
+  if (error) alert("ลบรูปไม่สำเร็จ: " + error.message);
+}
 
 /* ---------------- ตัวเลือก (option groups + values) ---------------- */
 function renderManageOptions() {
   const wrap = $("#manage-options-list");
   const options = currentManageProduct.options;
   if (!options.length) {
-    wrap.innerHTML = `<p class="hint-text">ยังไม่มีกลุ่มตัวเลือก — เพิ่มด้านล่าง เช่น "โลหะ", "ความยาวสร้อย"</p>`;
+    wrap.innerHTML = `<p class="hint-text">ยังไม่มีกลุ่มตัวเลือก — เพิ่มด้านล่าง เช่น "สี", "ขนาด" (ใส่ได้สูงสุด 3 กลุ่มต่อสินค้า เลือกใช้ 1, 2 หรือ 3 กลุ่มก็ได้)</p>`;
   } else {
     wrap.innerHTML = options.map(group => `
       <div class="og-block" data-group-id="${group.id}">
@@ -527,7 +570,15 @@ function renderManageOptions() {
         </div>
         <div class="og-values">
           ${group.values.map(val => `
-            <span class="og-chip" data-value-id="${val.id}">${escapeHtml(val.value)} <button type="button" class="val-remove">✕</button></span>
+            <span class="og-chip" data-value-id="${val.id}">
+              <label class="chip-swatch" title="อัปโหลดรูป (เช่น รูปสีจริง)">
+                ${val.image_url ? `<img src="${escapeHtml(val.image_url)}" alt="">` : `<span class="swatch-plus">+</span>`}
+                <input type="file" accept="image/*" class="value-image-input" hidden>
+              </label>
+              ${escapeHtml(val.value)}
+              ${val.image_url ? `<button type="button" class="val-image-remove" title="ลบรูป">🗑</button>` : ""}
+              <button type="button" class="val-remove" title="ลบตัวเลือกนี้">✕</button>
+            </span>
           `).join("") || `<span class="hint-text">ยังไม่มีค่าในกลุ่มนี้</span>`}
         </div>
         <form class="inline-add-form og-value-form">
@@ -554,6 +605,23 @@ function renderManageOptions() {
       });
     });
 
+    block.querySelectorAll(".value-image-input").forEach(input => {
+      input.addEventListener("change", (e) => {
+        const chip = input.closest(".og-chip");
+        const file = e.target.files[0];
+        if (file) handleValueImageUpload(chip.dataset.valueId, file);
+        input.value = "";
+      });
+    });
+
+    block.querySelectorAll(".val-image-remove").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const chip = btn.closest(".og-chip");
+        handleValueImageRemove(chip.dataset.valueId);
+      });
+    });
+
     block.querySelector(".og-value-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const input = e.target.querySelector("input");
@@ -566,11 +634,20 @@ function renderManageOptions() {
       input.value = "";
     });
   });
+
+  // จำกัดไว้สูงสุด 3 กลุ่มตัวเลือกต่อสินค้า
+  const atLimit = options.length >= 3;
+  $("#option-group-form").style.display = atLimit ? "none" : "flex";
+  $("#option-group-limit-note").style.display = atLimit ? "block" : "none";
 }
 
 $("#option-group-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentManageProduct) return;
+  if (currentManageProduct.options.length >= 3) {
+    alert("เพิ่มได้สูงสุด 3 กลุ่มตัวเลือกต่อสินค้า");
+    return;
+  }
   const name = $("#og-name").value.trim();
   if (!name) return;
   const nextSort = currentManageProduct.options.length
@@ -582,6 +659,52 @@ $("#option-group-form").addEventListener("submit", async (e) => {
   if (error) { alert("เพิ่มกลุ่มตัวเลือกไม่สำเร็จ: " + error.message); return; }
   $("#option-group-form").reset();
 });
+
+/* ---------------- รูปตัวอย่างของค่าตัวเลือก (เช่น สวอตช์สี) — ใช้ bucket product-images ร่วมกัน ---------------- */
+function findOptionValueById(valueId) {
+  for (const group of currentManageProduct.options) {
+    const val = group.values.find(v => v.id === valueId);
+    if (val) return val;
+  }
+  return null;
+}
+
+async function handleValueImageUpload(valueId, file) {
+  if (!file.type.startsWith("image/")) { alert("กรุณาเลือกไฟล์รูปภาพเท่านั้น"); return; }
+
+  const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|gif)$/i);
+  const ext = extMatch ? extMatch[1].toLowerCase() : (file.type.split("/")[1] || "jpg");
+  const path = `option-values/${valueId}-${Date.now()}.${ext}`;
+
+  const existing = findOptionValueById(valueId);
+  const oldPath = existing ? existing.storage_path : null;
+
+  const { error: upErr } = await sb.storage.from("product-images").upload(path, file);
+  if (upErr) { alert("อัปโหลดรูปไม่สำเร็จ: " + upErr.message); return; }
+
+  const { data: urlData } = sb.storage.from("product-images").getPublicUrl(path);
+  const { error: dbErr } = await sb.from("product_option_values")
+    .update({ image_url: urlData.publicUrl, storage_path: path })
+    .eq("id", valueId);
+
+  if (dbErr) { alert("บันทึกรูปไม่สำเร็จ: " + dbErr.message); return; }
+
+  if (oldPath && oldPath !== path) {
+    await sb.storage.from("product-images").remove([oldPath]);
+  }
+}
+
+async function handleValueImageRemove(valueId) {
+  if (!confirm("ลบรูปของตัวเลือกนี้ใช่หรือไม่?")) return;
+  const existing = findOptionValueById(valueId);
+  if (existing && existing.storage_path) {
+    await sb.storage.from("product-images").remove([existing.storage_path]);
+  }
+  const { error } = await sb.from("product_option_values")
+    .update({ image_url: null, storage_path: null })
+    .eq("id", valueId);
+  if (error) alert("ลบรูปไม่สำเร็จ: " + error.message);
+}
 
 /* ---------------- ตัวแปรสินค้า (variants: ราคา/สต๊อกแยกต่อชุดตัวเลือก) ---------------- */
 function variantLabel(product, variant) {

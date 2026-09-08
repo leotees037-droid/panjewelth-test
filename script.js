@@ -39,7 +39,7 @@ async function loadCatalog() {
       product_images ( id, url, sort_order ),
       product_options (
         id, name, sort_order,
-        product_option_values ( id, value, sort_order )
+        product_option_values ( id, value, sort_order, image_url )
       ),
       product_variants (
         id, sku, price, stock, image_url, active,
@@ -174,7 +174,10 @@ function renderProductOptions() {
           <button type="button"
             data-group="${group.id}" data-value="${val.id}"
             class="${selectedValues[group.id] === val.id ? "selected" : ""}"
-            onclick="selectOptionValue('${group.id}','${val.id}')">${val.value}</button>
+            onclick="selectOptionValue('${group.id}','${val.id}')">
+            ${val.image_url ? `<span class="swatch-thumb" style="background-image:url('${val.image_url}')"></span>` : ""}
+            ${val.value}
+          </button>
         `).join("")}
       </div>
     </div>
