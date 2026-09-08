@@ -141,11 +141,211 @@ header button.logout{
 }
 header button.logout:hover{background:#1c1c1c;}
 
+/* ---------- Tabs ---------- */
+.tabs{
+  max-width:960px;
+  margin:0 auto;
+  padding:14px 16px 0;
+  display:flex;
+  gap:8px;
+}
+.tabs .tab{
+  border:1px solid #e6e2da;
+  background:#fff;
+  padding:9px 18px;
+  border-radius:999px;
+  font-size:13.5px;
+  font-weight:700;
+  color:#777;
+  cursor:pointer;
+}
+.tabs .tab.active{
+  background:#111;
+  color:#fff;
+  border-color:#111;
+}
+
 main{
   max-width:960px;
   margin:0 auto;
   padding:22px 16px 60px;
 }
+
+/* ---------- Products ---------- */
+.add-product-btn{
+  border:none;
+  background:#111;
+  color:#fff;
+  font-weight:700;
+  font-size:13.5px;
+  padding:11px 18px;
+  border-radius:10px;
+  cursor:pointer;
+  margin-bottom:16px;
+}
+.add-product-btn:hover{background:#000;}
+
+.product-card{
+  background:#fff;
+  border:1px solid #e6e2da;
+  border-radius:14px;
+  padding:16px 20px;
+  margin-bottom:12px;
+  display:grid;
+  grid-template-columns:1fr auto auto auto;
+  align-items:center;
+  gap:16px;
+}
+.product-card.inactive{opacity:.55;}
+.product-card .pc-thumb{
+  width:52px;height:52px;border-radius:10px;
+  background:#eee;object-fit:cover;
+  border:1px solid #e6e2da;
+  flex:0 0 auto;
+}
+.product-card .pc-info{display:flex;align-items:center;gap:14px;}
+.product-card .pc-name{font-size:14.5px;font-weight:700;}
+.product-card .pc-key{font-size:11.5px;color:#999;}
+.product-card .pc-price{font-size:14px;font-weight:700;color:#a3771e;white-space:nowrap;}
+
+.stock-control{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.stock-control button{
+  width:28px;height:28px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  background:#faf9f6;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+  line-height:1;
+}
+.stock-control button:hover{background:#f0ece2;}
+.stock-control input{
+  width:56px;
+  text-align:center;
+  padding:6px 4px;
+  border:1px solid #ddd;
+  border-radius:8px;
+  font-size:13.5px;
+  font-weight:700;
+}
+.stock-control .stock-badge{
+  font-size:11px;
+  font-weight:700;
+  padding:2px 8px;
+  border-radius:999px;
+  margin-left:4px;
+}
+.stock-badge.ok{background:#e6f4ea;color:#1c8a4a;}
+.stock-badge.low{background:#fdf1d6;color:#a3771e;}
+.stock-badge.out{background:#fbe3df;color:#b3492f;}
+
+.pc-actions{display:flex;gap:6px;}
+.pc-actions button{
+  border:1px solid #ddd;
+  background:#fff;
+  border-radius:8px;
+  padding:7px 12px;
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
+}
+.pc-actions button:hover{background:#faf9f6;}
+.pc-actions .danger{color:#b3492f;border-color:#f1c7bd;}
+.pc-actions .danger:hover{background:#fdf3f1;}
+
+/* ---------- Modal ---------- */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;
+  z-index:200;
+  padding:20px;
+}
+.modal-card{
+  background:#fff;
+  border-radius:16px;
+  padding:26px 28px;
+  width:100%;
+  max-width:420px;
+  max-height:90vh;
+  overflow-y:auto;
+}
+.modal-card h3{margin:0 0 16px;font-size:17px;}
+.modal-card .field{margin-bottom:14px;}
+.modal-card .field label{
+  display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;color:#555;
+}
+.modal-card .field input{
+  width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;
+}
+.checkbox-field label{display:flex;align-items:center;gap:8px;font-weight:600;color:#333;}
+.checkbox-field input{width:auto;}
+.form-error{color:#b3492f;font-size:12.5px;margin-bottom:10px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;}
+.modal-actions button{
+  border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:700;cursor:pointer;
+}
+.modal-actions .secondary{background:#fff;border:1px solid #ddd;}
+.modal-actions .primary{background:#111;color:#fff;border:none;}
+
+@media(max-width:560px){
+  .product-card{grid-template-columns:1fr;}
+  .pc-actions{justify-content:flex-start;}
+}
+
+/* ---------- Manage-product modal (images / options / variants) ---------- */
+.manage-card{max-width:640px;}
+.manage-tabs{padding:0;margin-bottom:16px;}
+.manage-pane{margin-bottom:12px;}
+.hint-text{font-size:12px;color:#999;margin:6px 0 12px;}
+
+.inline-add-form{display:flex;gap:8px;margin-top:10px;}
+.inline-add-form input{
+  flex:1;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13.5px;
+}
+.inline-add-form button{
+  border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;
+  background:#111;color:#fff;cursor:pointer;white-space:nowrap;
+}
+
+.manage-images-list{display:flex;flex-direction:column;gap:8px;}
+.manage-image-row{
+  display:grid;grid-template-columns:52px 1fr auto auto;gap:10px;align-items:center;
+  border:1px solid #e6e2da;border-radius:10px;padding:8px 10px;
+}
+.manage-image-row img{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e6e2da;}
+.manage-image-row .img-sort{width:56px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12.5px;}
+.manage-image-row .img-remove{
+  border:1px solid #f1c7bd;color:#b3492f;background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;
+}
+
+.og-block{border:1px solid #e6e2da;border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+.og-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.og-header b{font-size:13.5px;}
+.og-header .og-remove{
+  border:1px solid #f1c7bd;color:#b3492f;background:#fff;border-radius:8px;padding:5px 10px;font-size:11.5px;cursor:pointer;
+}
+.og-values{display:flex;flex-wrap:wrap;gap:6px;}
+.og-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#faf9f6;border:1px solid #e6e2da;border-radius:999px;
+  padding:5px 6px 5px 12px;font-size:12.5px;
+}
+.og-chip .val-remove{
+  border:none;background:#eee;color:#777;border-radius:50%;
+  width:18px;height:18px;font-size:10px;cursor:pointer;line-height:1;
+}
+.og-value-form{margin-top:10px;}
+.og-value-form input{padding:8px 10px;font-size:12.5px;}
+.og-value-form button{padding:8px 12px;font-size:12px;}
+
+.variant-row .pc-price{display:none;} /* ราคาแสดงในช่อง input ของ stock-control แทน */
+
 
 .stats{
   display:grid;
