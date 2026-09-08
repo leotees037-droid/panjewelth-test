@@ -23,7 +23,7 @@
           <small>PERSONALIZED JEWELRY</small>
           <h1>สลักชื่อ<br><em>สร้อยคอ</em><br>ในแบบของคุณ</h1>
           <p>สร้างสร้อยคอที่มีความหมายสำหรับคุณ</p>
-          <button onclick="show('custom')">✦ ออกแบบเลย</button>
+          <button onclick="goDesign()">✦ ออกแบบเลย</button>
         </div>
       </div>
     </section>
@@ -31,26 +31,20 @@
     <section id="products" class="screen">
       <div class="title"><small>OUR COLLECTION</small><h2>สินค้า</h2></div>
       <div class="product-list">
-        <button class="product" onclick="selectMetal('silver');show('custom')"><div class="pic silver">Your Name</div><b>Silver Classic</b><span>฿890</span></button>
-        <button class="product" onclick="selectMetal('gold');show('custom')"><div class="pic gold">Your Name</div><b>Gold Elegant</b><span>฿1,190</span></button>
-        <button class="product" onclick="selectMetal('black');show('custom')"><div class="pic black">Your Name</div><b>Black Luxury</b><span>฿990</span></button>
-        <button class="product" onclick="selectMetal('rose');show('custom')"><div class="pic rose">Your Name</div><b>Rose Gold</b><span>฿1,090</span></button>
+        <p style="grid-column:1/-1;color:#999;font-size:13px;">กำลังโหลดสินค้า...</p>
       </div>
     </section>
 
     <section id="custom" class="screen">
-      <div class="title"><small>MAKE IT YOURS</small><h2>ออกแบบชื่อ</h2></div>
+      <button class="back-link" onclick="show('products')">‹ กลับไปเลือกสินค้า</button>
+      <div id="product-gallery" class="gallery"></div>
+      <div class="title"><small id="product-eyebrow">MAKE IT YOURS</small><h2 id="product-title">ออกแบบชื่อ</h2></div>
+      <p id="product-description" class="product-desc"></p>
+
       <div class="preview"><span id="preview">Your Name</span></div>
       <div class="form">
         <label>ชื่อที่ต้องการสลัก</label>
         <input id="name" maxlength="20" placeholder="เช่น Natcha, Aom, T♡M" oninput="update()">
-        <label>วัสดุ</label>
-        <div class="choices">
-          <button data-metal="silver" onclick="selectMetal('silver')">◉<small>Silver</small></button>
-          <button data-metal="gold" onclick="selectMetal('gold')">◉<small>Gold</small></button>
-          <button data-metal="black" onclick="selectMetal('black')">●<small>Black</small></button>
-          <button data-metal="rose" onclick="selectMetal('rose')">●<small>Rose Gold</small></button>
-        </div>
         <label>ฟอนต์</label>
         <div class="choices fonts">
           <button class="selected" onclick="font('serif')">Aa<small>Classic</small></button>
@@ -58,9 +52,12 @@
           <button onclick="font('cursive')">𝓕𝓪<small>Signature</small></button>
           <button onclick="font('Arial')">Aa<small>Modern</small></button>
         </div>
+        <div id="product-options"><!-- เติมโดย renderProductOptions() ตามกลุ่มตัวเลือกจริงของสินค้านี้ --></div>
       </div>
-      <button class="add" onclick="add()">เพิ่มลงตะกร้า <span>฿<b id="price">890</b></span></button>
+      <p id="variant-stock-msg" class="variant-stock-msg"></p>
+      <button class="add" id="add-btn" onclick="add()">เพิ่มลงตะกร้า <span>฿<b id="price">0</b></span></button>
     </section>
+
 
     <section id="cart" class="screen">
       <div class="title"><small>YOUR ORDER</small><h2>ตะกร้า</h2></div>
@@ -136,7 +133,7 @@
   <nav class="bottom">
     <button onclick="show('home')">⌂<small>หน้าแรก</small></button>
     <button onclick="show('products')">◇<small>สินค้า</small></button>
-    <button class="main" onclick="show('custom')">✦<small>ออกแบบ</small></button>
+    <button class="main" onclick="goDesign()">✦<small>ออกแบบ</small></button>
     <button onclick="show('cart')">🛒<small>ตะกร้า</small></button>
     <button onclick="show('about')">◎<small>เกี่ยวกับเรา</small></button>
   </nav>
