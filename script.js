@@ -14,6 +14,10 @@ let variantsBySku = {};        // sku -> variant (แนบ productId ไว้�
 let currentProduct = null;     // สินค้าที่กำลังดูอยู่ในหน้าออกแบบ
 let selectedValues = {};       // { optionGroupId: optionValueId }
 
+let engraveImageFile = null;      // File ที่ลูกค้าอัปโหลด (ยังไม่ upload ขึ้น storage จนกว่าจะยืนยันชำระเงิน)
+let engraveImageDataUrl = null;   // dataURL สำหรับโชว์พรีวิวทันที
+const previewImgCache = {};       // url -> HTMLImageElement ที่โหลดแล้ว (กันโหลดซ้ำ)
+
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
@@ -36,6 +40,8 @@ async function loadCatalog() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
+      allow_text, allow_emoji, allow_image,
+      engrave_x, engrave_y, engrave_w, engrave_h,
       product_images ( id, url, sort_order ),
       product_options (
         id, name, sort_order,
@@ -72,7 +78,12 @@ async function loadCatalog() {
       active: v.active,
       valueIds: (v.variant_option_values || []).map(x => x.option_value_id).sort()
     }));
-    return { id: p.id, key: p.key, name: p.name, description: p.description, images, options, variants };
+    return {
+      id: p.id, key: p.key, name: p.name, description: p.description,
+      allow_text: p.allow_text !== false, allow_emoji: p.allow_emoji !== false, allow_image: !!p.allow_image,
+      engrave_x: p.engrave_x, engrave_y: p.engrave_y, engrave_w: p.engrave_w, engrave_h: p.engrave_h,
+      images, options, variants
+    };
   });
 
   productsByKey = {};
@@ -155,11 +166,30 @@ function openProductDetail(key) {
     : `<div class="no-img">ยังไม่มีรูปสินค้า</div>`;
 
   renderProductOptions();
+  applyFeatureVisibility();
   computeAndRenderVariant();
 
-  document.getElementById("name").value = "";
-  update();
+  document.getElementById("engrave-text").value = "";
+  document.getElementById("engrave-emoji").value = "";
+  clearEngraveImage(); // ล้างรูปที่อาจค้างจากสินค้าก่อนหน้า + เรียก update() ให้ในตัว
   show("custom");
+}
+
+/* ---------------- ฟีเจอร์ที่เปิด/ปิดต่อสินค้า (ควบคุมจากหลังบ้าน) ---------------- */
+function currentFeatureFlags() {
+  if (!currentProduct) return { allow_text: true, allow_emoji: true, allow_image: false };
+  return {
+    allow_text: currentProduct.allow_text !== false,
+    allow_emoji: currentProduct.allow_emoji !== false,
+    allow_image: !!currentProduct.allow_image
+  };
+}
+
+function applyFeatureVisibility() {
+  const flags = currentFeatureFlags();
+  document.getElementById("engrave-text-field").style.display = flags.allow_text ? "block" : "none";
+  document.getElementById("engrave-emoji-field").style.display = flags.allow_emoji ? "block" : "none";
+  document.getElementById("engrave-image-field").style.display = flags.allow_image ? "block" : "none";
 }
 
 function renderProductOptions() {
@@ -207,33 +237,144 @@ function computeAndRenderVariant() {
   if (!variant) {
     priceEl.textContent = "-";
     msgEl.textContent = "ตัวเลือกนี้ยังไม่เปิดขาย กรุณาเลือกแบบอื่น";
+    msgEl.className = "variant-stock-msg out";
     addBtn.disabled = true;
+    renderPreview();
     return;
   }
 
   priceEl.textContent = variant.price.toLocaleString();
+
   if (variant.stock <= 0) {
     msgEl.textContent = "ตัวเลือกนี้สินค้าหมดชั่วคราว";
+    msgEl.className = "variant-stock-msg out";
     addBtn.disabled = true;
   } else if (variant.stock <= 5) {
-    msgEl.textContent = `เหลือเพียง ${variant.stock} ชิ้น`;
+    msgEl.textContent = `คงเหลือ ${variant.stock} ชิ้น — เหลือน้อยแล้ว`;
+    msgEl.className = "variant-stock-msg low";
     addBtn.disabled = false;
   } else {
-    msgEl.textContent = "";
+    msgEl.textContent = `คงเหลือ ${variant.stock} ชิ้น`;
+    msgEl.className = "variant-stock-msg ok";
     addBtn.disabled = false;
   }
+  renderPreview();
 }
 
-/* ---------------- ออกแบบชื่อ ---------------- */
+/* ---------------- ออกแบบชื่อ + พรีวิว 2D ---------------- */
 function update() {
-  document.getElementById("preview").textContent = document.getElementById("name").value || "Your Name";
+  renderPreview();
 }
 
 function font(f) {
   currentFont = f;
-  document.getElementById("preview").style.fontFamily = f;
   document.querySelectorAll(".fonts button").forEach(b => b.classList.remove("selected"));
   event.currentTarget.classList.add("selected");
+  renderPreview();
+}
+
+function onEngraveImageChange(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  engraveImageFile = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    engraveImageDataUrl = ev.target.result;
+    document.getElementById("engrave-image-clear").style.display = "inline-block";
+    update();
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearEngraveImage() {
+  engraveImageFile = null;
+  engraveImageDataUrl = null;
+  const input = document.getElementById("engrave-image");
+  if (input) input.value = "";
+  const clearBtn = document.getElementById("engrave-image-clear");
+  if (clearBtn) clearBtn.style.display = "none";
+  update();
+}
+
+/* ---------------- พรีวิว 2D บน canvas (รูปสินค้าจริง + ข้อความ/อิโมจิ/รูปที่ลูกค้าใส่) ---------------- */
+function pct(v, fallback) {
+  return (v === undefined || v === null || v === "") ? fallback : Number(v);
+}
+
+function baseImageUrlForPreview() {
+  const variant = currentMatchedVariant();
+  if (variant && variant.image_url) return variant.image_url;
+  return currentProduct && currentProduct.images[0] ? currentProduct.images[0].url : null;
+}
+
+function loadPreviewImage(url, cb) {
+  if (!url) return cb(null);
+  const cached = previewImgCache[url];
+  if (cached && cached.complete) return cb(cached);
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => { previewImgCache[url] = img; cb(img); };
+  img.onerror = () => cb(null);
+  img.src = url;
+}
+
+function drawImageCover(ctx, img, w, h) {
+  const ir = img.width / img.height, cr = w / h;
+  let sx, sy, sw, sh;
+  if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
+  else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+function renderPreview() {
+  const canvas = document.getElementById("preview-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  loadPreviewImage(baseImageUrlForPreview(), (base) => {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#ddd";
+    ctx.fillRect(0, 0, W, H);
+    if (base) drawImageCover(ctx, base, W, H);
+    drawEngraveContent(ctx, W, H);
+  });
+}
+
+function drawEngraveContent(ctx, W, H) {
+  const flags = currentFeatureFlags();
+  const ex = pct(currentProduct && currentProduct.engrave_x, 20) / 100 * W;
+  const ey = pct(currentProduct && currentProduct.engrave_y, 40) / 100 * H;
+  const ew = pct(currentProduct && currentProduct.engrave_w, 60) / 100 * W;
+  const eh = pct(currentProduct && currentProduct.engrave_h, 20) / 100 * H;
+
+  const text = flags.allow_text ? document.getElementById("engrave-text").value.trim() : "";
+  const emoji = flags.allow_emoji ? document.getElementById("engrave-emoji").value.trim() : "";
+  const typed = [text, emoji].filter(Boolean).join("  ");
+  const isPlaceholder = !typed && flags.allow_text;
+  const label = typed || (isPlaceholder ? "Your Name" : "");
+  const hasImage = flags.allow_image && !!engraveImageDataUrl;
+
+  const drawLabel = (uimg) => {
+    let textX = ex, textW = ew;
+    if (hasImage && uimg) {
+      const size = Math.min(eh, ew * 0.32);
+      ctx.drawImage(uimg, ex, ey + (eh - size) / 2, size, size);
+      textX = ex + size + ew * 0.06;
+      textW = ew - size - ew * 0.06;
+    }
+    if (!label) return;
+    ctx.save();
+    ctx.font = `${Math.max(14, eh * 0.5)}px ${currentFont}, serif`;
+    ctx.fillStyle = isPlaceholder ? "#999" : "#1c1c1c";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(label, textX + textW / 2, ey + eh / 2, Math.max(textW, 10));
+    ctx.restore();
+  };
+
+  if (hasImage) loadPreviewImage(engraveImageDataUrl, drawLabel);
+  else drawLabel(null);
 }
 
 /* ---------------- ตะกร้า ---------------- */
@@ -252,9 +393,19 @@ function add() {
   if (!currentProduct || !variant) return alert("กรุณาเลือกตัวเลือกสินค้าก่อน");
   if (variant.stock <= 0) return alert("ตัวเลือกนี้สินค้าหมดชั่วคราว กรุณาเลือกแบบอื่น");
 
+  const flags = currentFeatureFlags();
+  const text = flags.allow_text ? document.getElementById("engrave-text").value.trim() : "";
+  const emoji = flags.allow_emoji ? document.getElementById("engrave-emoji").value.trim() : "";
+  const displayName = [text, emoji].filter(Boolean).join(" ") || (flags.allow_text ? "Your Name" : "-");
+
   cart.push({
     sku: variant.sku,
-    name: document.getElementById("name").value.trim() || "Your Name",
+    name: displayName,
+    engraveText: text,
+    engraveEmoji: emoji,
+    // ไฟล์รูปยังไม่อัปโหลดขึ้น storage จนกว่าจะยืนยันการชำระเงิน (uploadCartEngraveImages)
+    engraveImageFile: flags.allow_image ? engraveImageFile : null,
+    engraveImageDataUrl: flags.allow_image ? engraveImageDataUrl : null,
     label: currentProduct.name + (optionSummaryText() ? " — " + optionSummaryText() : ""),
     price: variant.price
   });
@@ -269,7 +420,7 @@ function cartTotal() {
 function render() {
   document.getElementById("count").textContent = cart.length;
   document.getElementById("items").innerHTML = cart.length
-    ? cart.map(x => `<div class="item"><span>${x.label}<br><b>${x.name}</b></span><b>฿${x.price.toLocaleString()}</b></div>`).join("")
+    ? cart.map(x => `<div class="item"><span>${x.label}<br><b>${x.name}</b>${x.engraveImageDataUrl ? `<br><img src="${x.engraveImageDataUrl}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;margin-top:4px;">` : ""}</span><b>฿${x.price.toLocaleString()}</b></div>`).join("")
     : "ยังไม่มีสินค้าในตะกร้า";
 
   const totalBox = document.getElementById("cartTotal");
@@ -315,6 +466,22 @@ function uploadSlip(e) {
   reader.readAsDataURL(file);
 }
 
+// อัปโหลดรูปที่ลูกค้าแนบตอนออกแบบ (ถ้ามี) ขึ้น Supabase Storage ตอนยืนยันชำระเงิน — ไม่ใช่ตอนกดเพิ่มลงตะกร้า
+async function uploadCartEngraveImages() {
+  for (const item of cart) {
+    if (item.engraveImageFile && !item.engraveImageUrl) {
+      const file = item.engraveImageFile;
+      const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|gif)$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : (file.type.split("/")[1] || "jpg");
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await sb.storage.from("engravings").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from("engravings").getPublicUrl(path);
+      item.engraveImageUrl = urlData.publicUrl;
+    }
+  }
+}
+
 // รวมจำนวนต่อ sku 1 ตัว จากตะกร้า เพื่อตัดสต๊อกทีเดียวต่อตัวเลือก
 function cartQuantitiesBySku() {
   const qty = {};
@@ -354,11 +521,15 @@ async function confirmPayment() {
     if (upErr) throw upErr;
     const { data: urlData } = sb.storage.from("slips").getPublicUrl(path);
 
+    await uploadCartEngraveImages();
+    // ตัด File object ออกก่อนบันทึก (เก็บได้แค่ engraveImageUrl ที่เป็น string ใน jsonb)
+    const orderItems = cart.map(({ engraveImageFile, engraveImageDataUrl, ...rest }) => rest);
+
     const { error: insErr } = await sb.from("orders").insert({
       customer_name: custName,
       customer_phone: custPhone,
       customer_address: custAddress,
-      items: cart,
+      items: orderItems,
       total: cartTotal(),
       slip_url: urlData.publicUrl
     });

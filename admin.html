@@ -100,6 +100,12 @@
       <div class="field checkbox-field">
         <label><input id="p-active" type="checkbox" checked> เปิดขายหน้าร้าน</label>
       </div>
+      <div class="field">
+        <label>ฟีเจอร์การออกแบบที่ใช้ได้กับสินค้านี้ (พรีวิวหน้าร้าน)</label>
+        <div class="checkbox-field" style="margin-bottom:8px;"><label><input id="p-allow-text" type="checkbox" checked> ให้ลูกค้าใส่ข้อความสลัก</label></div>
+        <div class="checkbox-field" style="margin-bottom:8px;"><label><input id="p-allow-emoji" type="checkbox" checked> ให้ลูกค้าใส่อิโมจิ</label></div>
+        <div class="checkbox-field"><label><input id="p-allow-image" type="checkbox"> ให้ลูกค้าอัปโหลดรูปภาพ</label></div>
+      </div>
       <div id="product-form-error" class="form-error" style="display:none;"></div>
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closeProductForm()">ยกเลิก</button>
@@ -118,6 +124,7 @@
       <button class="tab active" id="mtab-images" onclick="switchManageTab('images')">รูปภาพ</button>
       <button class="tab" id="mtab-options" onclick="switchManageTab('options')">ตัวเลือก</button>
       <button class="tab" id="mtab-variants" onclick="switchManageTab('variants')">ตัวแปรสินค้า (ราคา-สต๊อก)</button>
+      <button class="tab" id="mtab-area" onclick="switchManageTab('area')">พื้นที่พรีวิว</button>
     </div>
 
     <!-- รูปภาพ -->
@@ -141,6 +148,20 @@
       <button id="generate-variants-btn" class="add-product-btn" type="button" onclick="generateMissingVariants()">⚙ สร้างตัวเลือกที่ขาดหายอัตโนมัติ</button>
       <p class="hint-text">รวมทุกกลุ่มตัวเลือกเป็นชุดค่าผสม แล้วสร้างแถวที่ยังไม่มีให้อัตโนมัติ (ราคา/สต๊อกเริ่มต้นเป็น 0 แก้ไขได้ด้านล่าง)</p>
       <div id="manage-variants-list"></div>
+    </div>
+
+    <!-- พื้นที่พรีวิว -->
+    <div id="manage-area" class="manage-pane" style="display:none;">
+      <p class="hint-text">ลากกรอบเพื่อย้ายตำแหน่ง หรือลากจุดที่มุมขวาล่างเพื่อปรับขนาด — นี่คือตำแหน่งที่ข้อความ/อิโมจิ/รูปของลูกค้าจะไปแสดงบนพรีวิว 2D หน้าร้าน</p>
+      <div id="area-editor" class="area-editor" style="display:none;">
+        <img id="area-editor-img" src="" alt="">
+        <div id="area-box" class="area-box"></div>
+      </div>
+      <div id="area-no-image" class="hint-text" style="display:none;">ต้องอัปโหลดรูปสินค้าอย่างน้อย 1 รูปในแท็บ "รูปภาพ" ก่อน จึงจะกำหนดตำแหน่งพรีวิวได้</div>
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:12px;">
+        <button type="button" class="secondary" id="area-reset-btn">รีเซ็ตเป็นค่ากลาง</button>
+        <button type="button" class="primary" id="area-save-btn">บันทึกตำแหน่ง</button>
+      </div>
     </div>
 
     <div class="modal-actions">

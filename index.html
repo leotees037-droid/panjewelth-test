@@ -41,10 +41,23 @@
       <div class="title"><small id="product-eyebrow">MAKE IT YOURS</small><h2 id="product-title">ออกแบบชื่อ</h2></div>
       <p id="product-description" class="product-desc"></p>
 
-      <div class="preview"><span id="preview">Your Name</span></div>
+      <div class="preview-2d" id="preview-2d">
+        <canvas id="preview-canvas" width="640" height="480"></canvas>
+      </div>
       <div class="form">
-        <label>ชื่อที่ต้องการสลัก</label>
-        <input id="name" maxlength="20" placeholder="เช่น Natcha, Aom, T♡M" oninput="update()">
+        <div id="engrave-text-field">
+          <label>ข้อความที่ต้องการสลัก</label>
+          <input id="engrave-text" maxlength="20" placeholder="เช่น Natcha, Aom, Theerapat" oninput="update()">
+        </div>
+        <div id="engrave-emoji-field">
+          <label>อิโมจิ (ใส่หรือไม่ก็ได้)</label>
+          <input id="engrave-emoji" maxlength="4" placeholder="เช่น ♡ ✦ 🤍" oninput="update()">
+        </div>
+        <div id="engrave-image-field">
+          <label>อัปโหลดรูปภาพ (ใส่หรือไม่ก็ได้)</label>
+          <input type="file" id="engrave-image" accept="image/*" onchange="onEngraveImageChange(event)">
+          <button type="button" id="engrave-image-clear" class="clear-image-btn" style="display:none" onclick="clearEngraveImage()">ลบรูปที่เลือก ✕</button>
+        </div>
         <label>ฟอนต์</label>
         <div class="choices fonts">
           <button class="selected" onclick="font('serif')">Aa<small>Classic</small></button>

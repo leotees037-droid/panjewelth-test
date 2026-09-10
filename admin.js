@@ -214,7 +214,7 @@ function renderOrders(highlightId) {
     const items = parseItems(o[COL.items]);
     const itemsHtml = items.map(it => `
       <div class="item-row">
-        <span>${escapeHtml(it.label || it.metal || "สินค้า")} — สลัก "<span class="item-name">${escapeHtml(it.name)}</span>"</span>
+        <span>${escapeHtml(it.label || it.metal || "สินค้า")} — สลัก "<span class="item-name">${escapeHtml(it.name)}</span>"${it.engraveImageUrl ? ` <img src="${escapeHtml(it.engraveImageUrl)}" alt="" style="width:22px;height:22px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-left:4px;">` : ""}</span>
         <span class="item-price">฿${Number(it.price || 0).toLocaleString()}</span>
       </div>
     `).join("") || `<div class="item-row"><span>ไม่มีรายการสินค้า</span></div>`;
@@ -259,6 +259,8 @@ async function loadProducts() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
+      allow_text, allow_emoji, allow_image,
+      engrave_x, engrave_y, engrave_w, engrave_h,
       product_images ( id, url, storage_path, sort_order ),
       product_options (
         id, name, sort_order,
@@ -296,7 +298,12 @@ async function loadProducts() {
       active: v.active,
       valueIds: (v.variant_option_values || []).map(x => x.option_value_id).sort()
     }));
-    return { id: p.id, key: p.key, name: p.name, description: p.description, active: p.active, images, options, variants };
+    return {
+      id: p.id, key: p.key, name: p.name, description: p.description, active: p.active,
+      allow_text: p.allow_text !== false, allow_emoji: p.allow_emoji !== false, allow_image: !!p.allow_image,
+      engrave_x: p.engrave_x, engrave_y: p.engrave_y, engrave_w: p.engrave_w, engrave_h: p.engrave_h,
+      images, options, variants
+    };
   });
 
   updateProductStats();
@@ -310,6 +317,7 @@ async function loadProducts() {
       renderManageImages();
       renderManageOptions();
       renderManageVariants();
+      renderManageArea();
     }
   }
 }
@@ -346,7 +354,7 @@ function renderProducts() {
           : `<div class="pc-thumb"></div>`}
         <div>
           <div class="pc-name">${escapeHtml(p.name)}${p.active ? "" : " (ปิดขาย)"}</div>
-          <div class="pc-key">key: ${escapeHtml(p.key)} • ${p.options.length} กลุ่มตัวเลือก • ${p.variants.length} ตัวเลือกย่อย</div>
+          <div class="pc-key">key: ${escapeHtml(p.key)} • ${p.options.length} กลุ่มตัวเลือก • ${p.variants.length} ตัวเลือกย่อย • สลัก: ${[p.allow_text && "ข้อความ", p.allow_emoji && "อิโมจิ", p.allow_image && "รูปภาพ"].filter(Boolean).join("/") || "ปิดทั้งหมด"}</div>
         </div>
       </div>
       <div class="pc-price">สต๊อกรวม ${totalStock.toLocaleString()} ชิ้น</div>
@@ -381,11 +389,17 @@ function openProductForm(product) {
     $("#p-name").value = product.name;
     $("#p-description").value = product.description || "";
     $("#p-active").checked = !!product.active;
+    $("#p-allow-text").checked = product.allow_text !== false;
+    $("#p-allow-emoji").checked = product.allow_emoji !== false;
+    $("#p-allow-image").checked = !!product.allow_image;
   } else {
     $("#product-form-title").textContent = "เพิ่มสินค้าใหม่";
     $("#p-id").value = "";
     $("#p-key").disabled = false;
     $("#p-active").checked = true;
+    $("#p-allow-text").checked = true;
+    $("#p-allow-emoji").checked = true;
+    $("#p-allow-image").checked = false;
   }
   $("#product-modal").style.display = "flex";
 }
@@ -408,7 +422,10 @@ $("#product-form").addEventListener("submit", async (e) => {
     key: $("#p-key").value.trim().toLowerCase(),
     name: $("#p-name").value.trim(),
     description: $("#p-description").value.trim() || null,
-    active: $("#p-active").checked
+    active: $("#p-active").checked,
+    allow_text: $("#p-allow-text").checked,
+    allow_emoji: $("#p-allow-emoji").checked,
+    allow_image: $("#p-allow-image").checked
   };
 
   if (!/^[a-z0-9_-]+$/.test(payload.key)) {
@@ -422,7 +439,10 @@ $("#product-form").addEventListener("submit", async (e) => {
     ({ error } = await sb.from("products").update({
       name: payload.name,
       description: payload.description,
-      active: payload.active
+      active: payload.active,
+      allow_text: payload.allow_text,
+      allow_emoji: payload.allow_emoji,
+      allow_image: payload.allow_image
     }).eq("id", id));
   } else {
     ({ error } = await sb.from("products").insert(payload));
@@ -450,6 +470,7 @@ function openManageModal(productId) {
   renderManageImages();
   renderManageOptions();
   renderManageVariants();
+  renderManageArea();
   $("#manage-modal").style.display = "flex";
 }
 
@@ -463,7 +484,7 @@ $("#manage-modal").addEventListener("click", (e) => {
 });
 
 function switchManageTab(tab) {
-  ["images", "options", "variants"].forEach(t => {
+  ["images", "options", "variants", "area"].forEach(t => {
     $("#mtab-" + t).classList.toggle("active", t === tab);
     $("#manage-" + t).style.display = t === tab ? "block" : "none";
   });
@@ -835,6 +856,120 @@ async function generateMissingVariants() {
 
   alert(`สร้างตัวแปรสินค้าใหม่ ${missing.length} รายการ — ตั้งราคา/สต๊อกด้านล่างได้เลย`);
 }
+
+/* ---------------- พื้นที่พรีวิว (ลาก/ปรับขนาดกรอบข้อความสลักบนรูปสินค้า) ---------------- */
+const AREA_DEFAULT = { x: 20, y: 40, w: 60, h: 20 };
+
+function currentAreaValues() {
+  if (!currentManageProduct) return { ...AREA_DEFAULT };
+  const p = currentManageProduct;
+  return {
+    x: p.engrave_x != null ? Number(p.engrave_x) : AREA_DEFAULT.x,
+    y: p.engrave_y != null ? Number(p.engrave_y) : AREA_DEFAULT.y,
+    w: p.engrave_w != null ? Number(p.engrave_w) : AREA_DEFAULT.w,
+    h: p.engrave_h != null ? Number(p.engrave_h) : AREA_DEFAULT.h
+  };
+}
+
+function clampAreaBox(box) {
+  const w = Math.min(Math.max(box.w, 5), 100);
+  const h = Math.min(Math.max(box.h, 5), 100);
+  const x = Math.min(Math.max(box.x, 0), 100 - w);
+  const y = Math.min(Math.max(box.y, 0), 100 - h);
+  return { x, y, w, h };
+}
+
+function setAreaBoxStyle(box) {
+  const el = $("#area-box");
+  if (!el) return;
+  el.style.left = box.x + "%";
+  el.style.top = box.y + "%";
+  el.style.width = box.w + "%";
+  el.style.height = box.h + "%";
+}
+
+function renderManageArea() {
+  if (!currentManageProduct) return;
+  const img = currentManageProduct.images[0];
+  const editor = $("#area-editor");
+  const noImg = $("#area-no-image");
+  if (!img) {
+    editor.style.display = "none";
+    noImg.style.display = "block";
+    return;
+  }
+  editor.style.display = "block";
+  noImg.style.display = "none";
+  $("#area-editor-img").src = img.url;
+  $("#area-box").innerHTML = `<div class="handle" id="area-handle"></div>`;
+  setAreaBoxStyle(currentAreaValues());
+  bindAreaHandlers();
+}
+
+let areaDrag = null;
+
+function bindAreaHandlers() {
+  const box = $("#area-box");
+  const handle = $("#area-handle");
+  if (!box || !handle) return;
+
+  box.onpointerdown = (e) => {
+    if (e.target === handle) return;
+    startAreaDrag(e, "move");
+  };
+  handle.onpointerdown = (e) => {
+    e.stopPropagation();
+    startAreaDrag(e, "resize");
+  };
+}
+
+function startAreaDrag(e, mode) {
+  const rect = $("#area-editor").getBoundingClientRect();
+  areaDrag = { mode, rect, startX: e.clientX, startY: e.clientY, box: currentAreaValues() };
+  e.preventDefault();
+}
+
+window.addEventListener("pointermove", (e) => {
+  if (!areaDrag || !currentManageProduct) return;
+  const { rect, startX, startY, box, mode } = areaDrag;
+  const dxPct = ((e.clientX - startX) / rect.width) * 100;
+  const dyPct = ((e.clientY - startY) / rect.height) * 100;
+  let next;
+  if (mode === "move") {
+    next = clampAreaBox({ x: box.x + dxPct, y: box.y + dyPct, w: box.w, h: box.h });
+  } else {
+    next = clampAreaBox({ x: box.x, y: box.y, w: box.w + dxPct, h: box.h + dyPct });
+  }
+  currentManageProduct.engrave_x = next.x;
+  currentManageProduct.engrave_y = next.y;
+  currentManageProduct.engrave_w = next.w;
+  currentManageProduct.engrave_h = next.h;
+  setAreaBoxStyle(next);
+});
+
+window.addEventListener("pointerup", () => { areaDrag = null; });
+
+$("#area-reset-btn").addEventListener("click", () => {
+  if (!currentManageProduct) return;
+  currentManageProduct.engrave_x = AREA_DEFAULT.x;
+  currentManageProduct.engrave_y = AREA_DEFAULT.y;
+  currentManageProduct.engrave_w = AREA_DEFAULT.w;
+  currentManageProduct.engrave_h = AREA_DEFAULT.h;
+  setAreaBoxStyle(AREA_DEFAULT);
+});
+
+$("#area-save-btn").addEventListener("click", async () => {
+  if (!currentManageProduct) return;
+  const v = currentAreaValues();
+  const btn = $("#area-save-btn");
+  btn.disabled = true;
+  const { error } = await sb.from("products").update({
+    engrave_x: v.x, engrave_y: v.y, engrave_w: v.w, engrave_h: v.h
+  }).eq("id", currentManageProduct.id);
+  btn.disabled = false;
+  if (error) alert("บันทึกตำแหน่งพรีวิวไม่สำเร็จ: " + error.message);
+  else alert("บันทึกตำแหน่งพรีวิวแล้ว — ลูกค้าจะเห็นการเปลี่ยนแปลงนี้ในหน้าออกแบบทันที");
+});
 
 /* ---------------- Lightbox ---------------- */
 function openLightbox(src) {
