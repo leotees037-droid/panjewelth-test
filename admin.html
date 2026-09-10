@@ -152,15 +152,16 @@
 
     <!-- พื้นที่พรีวิว -->
     <div id="manage-area" class="manage-pane" style="display:none;">
-      <p class="hint-text">ลากกรอบเพื่อย้ายตำแหน่ง หรือลากจุดที่มุมขวาล่างเพื่อปรับขนาด — นี่คือตำแหน่งที่ข้อความ/อิโมจิ/รูปของลูกค้าจะไปแสดงบนพรีวิว 2D หน้าร้าน</p>
-      <div id="area-editor" class="area-editor" style="display:none;">
-        <img id="area-editor-img" src="" alt="">
-        <div id="area-box" class="area-box"></div>
+      <p class="hint-text">เลือกรูปทรงพรีวิว 2 มิติที่เหมาะกับสินค้านี้ (เช่น แหวนเลือก "หน้าแหวน", กำไลแผ่นเลือกสี่เหลี่ยมผืนผ้า) ระบบจะวาดเป็นแผ่นโลหะสีเงินให้อัตโนมัติ พร้อมข้อความ/อิโมจิ/รูปของลูกค้าตอนออกแบบ</p>
+      <div class="field">
+        <label for="area-shape-select">รูปทรงพรีวิว</label>
+        <select id="area-shape-select"></select>
       </div>
-      <div id="area-no-image" class="hint-text" style="display:none;">ต้องอัปโหลดรูปสินค้าอย่างน้อย 1 รูปในแท็บ "รูปภาพ" ก่อน จึงจะกำหนดตำแหน่งพรีวิวได้</div>
+      <div class="area-preview-wrap">
+        <canvas id="area-preview-canvas" width="640" height="480"></canvas>
+      </div>
       <div class="modal-actions" style="justify-content:flex-start;margin-top:12px;">
-        <button type="button" class="secondary" id="area-reset-btn">รีเซ็ตเป็นค่ากลาง</button>
-        <button type="button" class="primary" id="area-save-btn">บันทึกตำแหน่ง</button>
+        <button type="button" class="primary" id="area-save-btn">บันทึกรูปทรง</button>
       </div>
     </div>
 
@@ -176,6 +177,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
+<script src="preview-shapes.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

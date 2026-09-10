@@ -40,8 +40,7 @@ async function loadCatalog() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
-      allow_text, allow_emoji, allow_image,
-      engrave_x, engrave_y, engrave_w, engrave_h,
+      allow_text, allow_emoji, allow_image, preview_shape,
       product_images ( id, url, sort_order ),
       product_options (
         id, name, sort_order,
@@ -81,7 +80,7 @@ async function loadCatalog() {
     return {
       id: p.id, key: p.key, name: p.name, description: p.description,
       allow_text: p.allow_text !== false, allow_emoji: p.allow_emoji !== false, allow_image: !!p.allow_image,
-      engrave_x: p.engrave_x, engrave_y: p.engrave_y, engrave_w: p.engrave_w, engrave_h: p.engrave_h,
+      preview_shape: p.preview_shape || DEFAULT_PREVIEW_SHAPE,
       images, options, variants
     };
   });
@@ -296,17 +295,7 @@ function clearEngraveImage() {
   update();
 }
 
-/* ---------------- พรีวิว 2D บน canvas (รูปสินค้าจริง + ข้อความ/อิโมจิ/รูปที่ลูกค้าใส่) ---------------- */
-function pct(v, fallback) {
-  return (v === undefined || v === null || v === "") ? fallback : Number(v);
-}
-
-function baseImageUrlForPreview() {
-  const variant = currentMatchedVariant();
-  if (variant && variant.image_url) return variant.image_url;
-  return currentProduct && currentProduct.images[0] ? currentProduct.images[0].url : null;
-}
-
+/* ---------------- พรีวิว 2D: รูปทรงสีเงิน + ข้อความ/อิโมจิ/รูปที่ลูกค้าใส่ ---------------- */
 function loadPreviewImage(url, cb) {
   if (!url) return cb(null);
   const cached = previewImgCache[url];
@@ -318,63 +307,27 @@ function loadPreviewImage(url, cb) {
   img.src = url;
 }
 
-function drawImageCover(ctx, img, w, h) {
-  const ir = img.width / img.height, cr = w / h;
-  let sx, sy, sw, sh;
-  if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
-  else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-}
-
 function renderPreview() {
   const canvas = document.getElementById("preview-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
-
-  loadPreviewImage(baseImageUrlForPreview(), (base) => {
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#ddd";
-    ctx.fillRect(0, 0, W, H);
-    if (base) drawImageCover(ctx, base, W, H);
-    drawEngraveContent(ctx, W, H);
-  });
-}
-
-function drawEngraveContent(ctx, W, H) {
   const flags = currentFeatureFlags();
-  const ex = pct(currentProduct && currentProduct.engrave_x, 20) / 100 * W;
-  const ey = pct(currentProduct && currentProduct.engrave_y, 40) / 100 * H;
-  const ew = pct(currentProduct && currentProduct.engrave_w, 60) / 100 * W;
-  const eh = pct(currentProduct && currentProduct.engrave_h, 20) / 100 * H;
 
   const text = flags.allow_text ? document.getElementById("engrave-text").value.trim() : "";
   const emoji = flags.allow_emoji ? document.getElementById("engrave-emoji").value.trim() : "";
-  const typed = [text, emoji].filter(Boolean).join("  ");
-  const isPlaceholder = !typed && flags.allow_text;
-  const label = typed || (isPlaceholder ? "Your Name" : "");
-  const hasImage = flags.allow_image && !!engraveImageDataUrl;
+  const isPlaceholder = !text && !emoji && flags.allow_text;
+  const shapeKey = (currentProduct && currentProduct.preview_shape) || DEFAULT_PREVIEW_SHAPE;
 
-  const drawLabel = (uimg) => {
-    let textX = ex, textW = ew;
-    if (hasImage && uimg) {
-      const size = Math.min(eh, ew * 0.32);
-      ctx.drawImage(uimg, ex, ey + (eh - size) / 2, size, size);
-      textX = ex + size + ew * 0.06;
-      textW = ew - size - ew * 0.06;
-    }
-    if (!label) return;
-    ctx.save();
-    ctx.font = `${Math.max(14, eh * 0.5)}px ${currentFont}, serif`;
-    ctx.fillStyle = isPlaceholder ? "#999" : "#1c1c1c";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
-    ctx.fillText(label, textX + textW / 2, ey + eh / 2, Math.max(textW, 10));
-    ctx.restore();
+  const draw = (imgEl) => {
+    drawPreviewShape(ctx, W, H, shapeKey, {
+      text, emoji, image: (flags.allow_image ? imgEl : null),
+      fontFamily: currentFont, isPlaceholder
+    });
   };
 
-  if (hasImage) loadPreviewImage(engraveImageDataUrl, drawLabel);
-  else drawLabel(null);
+  if (flags.allow_image && engraveImageDataUrl) loadPreviewImage(engraveImageDataUrl, draw);
+  else draw(null);
 }
 
 /* ---------------- ตะกร้า ---------------- */

@@ -385,21 +385,12 @@ main{
 
 .variant-row .pc-price{display:none;} /* ราคาแสดงในช่อง input ของ stock-control แทน */
 
-/* ---------- พื้นที่พรีวิว (ลาก/ปรับขนาดกรอบบนรูปสินค้า) ---------- */
-.area-editor{
-  position:relative;width:100%;border-radius:10px;overflow:hidden;
-  background:#eee;user-select:none;touch-action:none;line-height:0;
+/* ---------- พื้นที่พรีวิว (mini canvas แสดงรูปทรงสีเงินที่เลือก) ---------- */
+.area-preview-wrap{
+  width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;
+  background:#eee;margin-top:4px;box-shadow:inset 0 0 0 1px #e6e2da;
 }
-.area-editor img{width:100%;display:block;pointer-events:none;}
-.area-box{
-  position:absolute;border:2px dashed #d8ae59;background:rgba(216,174,89,.18);
-  box-sizing:border-box;cursor:move;min-width:24px;min-height:24px;
-}
-.area-box .handle{
-  position:absolute;width:16px;height:16px;background:#d8ae59;border:2px solid #fff;
-  border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;
-  box-shadow:0 2px 6px rgba(0,0,0,.3);
-}
+.area-preview-wrap canvas{width:100%;height:100%;display:block;}
 
 
 .stats{

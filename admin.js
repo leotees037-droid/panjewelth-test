@@ -259,8 +259,7 @@ async function loadProducts() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
-      allow_text, allow_emoji, allow_image,
-      engrave_x, engrave_y, engrave_w, engrave_h,
+      allow_text, allow_emoji, allow_image, preview_shape,
       product_images ( id, url, storage_path, sort_order ),
       product_options (
         id, name, sort_order,
@@ -301,7 +300,7 @@ async function loadProducts() {
     return {
       id: p.id, key: p.key, name: p.name, description: p.description, active: p.active,
       allow_text: p.allow_text !== false, allow_emoji: p.allow_emoji !== false, allow_image: !!p.allow_image,
-      engrave_x: p.engrave_x, engrave_y: p.engrave_y, engrave_w: p.engrave_w, engrave_h: p.engrave_h,
+      preview_shape: p.preview_shape || DEFAULT_PREVIEW_SHAPE,
       images, options, variants
     };
   });
@@ -354,7 +353,7 @@ function renderProducts() {
           : `<div class="pc-thumb"></div>`}
         <div>
           <div class="pc-name">${escapeHtml(p.name)}${p.active ? "" : " (ปิดขาย)"}</div>
-          <div class="pc-key">key: ${escapeHtml(p.key)} • ${p.options.length} กลุ่มตัวเลือก • ${p.variants.length} ตัวเลือกย่อย • สลัก: ${[p.allow_text && "ข้อความ", p.allow_emoji && "อิโมจิ", p.allow_image && "รูปภาพ"].filter(Boolean).join("/") || "ปิดทั้งหมด"}</div>
+          <div class="pc-key">key: ${escapeHtml(p.key)} • ${p.options.length} กลุ่มตัวเลือก • ${p.variants.length} ตัวเลือกย่อย • สลัก: ${[p.allow_text && "ข้อความ", p.allow_emoji && "อิโมจิ", p.allow_image && "รูปภาพ"].filter(Boolean).join("/") || "ปิดทั้งหมด"} • ทรง: ${(PREVIEW_SHAPES[p.preview_shape] || {}).label || p.preview_shape}</div>
         </div>
       </div>
       <div class="pc-price">สต๊อกรวม ${totalStock.toLocaleString()} ชิ้น</div>
@@ -857,118 +856,41 @@ async function generateMissingVariants() {
   alert(`สร้างตัวแปรสินค้าใหม่ ${missing.length} รายการ — ตั้งราคา/สต๊อกด้านล่างได้เลย`);
 }
 
-/* ---------------- พื้นที่พรีวิว (ลาก/ปรับขนาดกรอบข้อความสลักบนรูปสินค้า) ---------------- */
-const AREA_DEFAULT = { x: 20, y: 40, w: 60, h: 20 };
-
-function currentAreaValues() {
-  if (!currentManageProduct) return { ...AREA_DEFAULT };
-  const p = currentManageProduct;
-  return {
-    x: p.engrave_x != null ? Number(p.engrave_x) : AREA_DEFAULT.x,
-    y: p.engrave_y != null ? Number(p.engrave_y) : AREA_DEFAULT.y,
-    w: p.engrave_w != null ? Number(p.engrave_w) : AREA_DEFAULT.w,
-    h: p.engrave_h != null ? Number(p.engrave_h) : AREA_DEFAULT.h
-  };
+/* ---------------- พื้นที่พรีวิว (เลือกรูปทรงเรขาคณิตสีเงิน) ---------------- */
+function populateAreaShapeSelect() {
+  const sel = $("#area-shape-select");
+  if (!sel || sel.options.length) return; // เติมแค่ครั้งเดียว
+  sel.innerHTML = PREVIEW_SHAPE_KEYS.map(k => `<option value="${k}">${PREVIEW_SHAPES[k].label}</option>`).join("");
 }
 
-function clampAreaBox(box) {
-  const w = Math.min(Math.max(box.w, 5), 100);
-  const h = Math.min(Math.max(box.h, 5), 100);
-  const x = Math.min(Math.max(box.x, 0), 100 - w);
-  const y = Math.min(Math.max(box.y, 0), 100 - h);
-  return { x, y, w, h };
-}
-
-function setAreaBoxStyle(box) {
-  const el = $("#area-box");
-  if (!el) return;
-  el.style.left = box.x + "%";
-  el.style.top = box.y + "%";
-  el.style.width = box.w + "%";
-  el.style.height = box.h + "%";
+function renderAreaPreviewCanvas() {
+  const canvas = $("#area-preview-canvas");
+  if (!canvas || !currentManageProduct) return;
+  const ctx = canvas.getContext("2d");
+  const shapeKey = $("#area-shape-select").value || DEFAULT_PREVIEW_SHAPE;
+  drawPreviewShape(ctx, canvas.width, canvas.height, shapeKey, {
+    text: "", emoji: "", image: null, fontFamily: "serif", isPlaceholder: true
+  });
 }
 
 function renderManageArea() {
   if (!currentManageProduct) return;
-  const img = currentManageProduct.images[0];
-  const editor = $("#area-editor");
-  const noImg = $("#area-no-image");
-  if (!img) {
-    editor.style.display = "none";
-    noImg.style.display = "block";
-    return;
-  }
-  editor.style.display = "block";
-  noImg.style.display = "none";
-  $("#area-editor-img").src = img.url;
-  $("#area-box").innerHTML = `<div class="handle" id="area-handle"></div>`;
-  setAreaBoxStyle(currentAreaValues());
-  bindAreaHandlers();
+  populateAreaShapeSelect();
+  $("#area-shape-select").value = currentManageProduct.preview_shape || DEFAULT_PREVIEW_SHAPE;
+  renderAreaPreviewCanvas();
 }
 
-let areaDrag = null;
-
-function bindAreaHandlers() {
-  const box = $("#area-box");
-  const handle = $("#area-handle");
-  if (!box || !handle) return;
-
-  box.onpointerdown = (e) => {
-    if (e.target === handle) return;
-    startAreaDrag(e, "move");
-  };
-  handle.onpointerdown = (e) => {
-    e.stopPropagation();
-    startAreaDrag(e, "resize");
-  };
-}
-
-function startAreaDrag(e, mode) {
-  const rect = $("#area-editor").getBoundingClientRect();
-  areaDrag = { mode, rect, startX: e.clientX, startY: e.clientY, box: currentAreaValues() };
-  e.preventDefault();
-}
-
-window.addEventListener("pointermove", (e) => {
-  if (!areaDrag || !currentManageProduct) return;
-  const { rect, startX, startY, box, mode } = areaDrag;
-  const dxPct = ((e.clientX - startX) / rect.width) * 100;
-  const dyPct = ((e.clientY - startY) / rect.height) * 100;
-  let next;
-  if (mode === "move") {
-    next = clampAreaBox({ x: box.x + dxPct, y: box.y + dyPct, w: box.w, h: box.h });
-  } else {
-    next = clampAreaBox({ x: box.x, y: box.y, w: box.w + dxPct, h: box.h + dyPct });
-  }
-  currentManageProduct.engrave_x = next.x;
-  currentManageProduct.engrave_y = next.y;
-  currentManageProduct.engrave_w = next.w;
-  currentManageProduct.engrave_h = next.h;
-  setAreaBoxStyle(next);
-});
-
-window.addEventListener("pointerup", () => { areaDrag = null; });
-
-$("#area-reset-btn").addEventListener("click", () => {
-  if (!currentManageProduct) return;
-  currentManageProduct.engrave_x = AREA_DEFAULT.x;
-  currentManageProduct.engrave_y = AREA_DEFAULT.y;
-  currentManageProduct.engrave_w = AREA_DEFAULT.w;
-  currentManageProduct.engrave_h = AREA_DEFAULT.h;
-  setAreaBoxStyle(AREA_DEFAULT);
-});
+$("#area-shape-select").addEventListener("change", renderAreaPreviewCanvas);
 
 $("#area-save-btn").addEventListener("click", async () => {
   if (!currentManageProduct) return;
-  const v = currentAreaValues();
+  const shapeKey = $("#area-shape-select").value || DEFAULT_PREVIEW_SHAPE;
   const btn = $("#area-save-btn");
   btn.disabled = true;
-  const { error } = await sb.from("products").update({
-    engrave_x: v.x, engrave_y: v.y, engrave_w: v.w, engrave_h: v.h
-  }).eq("id", currentManageProduct.id);
+  const { error } = await sb.from("products").update({ preview_shape: shapeKey }).eq("id", currentManageProduct.id);
   btn.disabled = false;
-  if (error) alert("บันทึกตำแหน่งพรีวิวไม่สำเร็จ: " + error.message);
-  else alert("บันทึกตำแหน่งพรีวิวแล้ว — ลูกค้าจะเห็นการเปลี่ยนแปลงนี้ในหน้าออกแบบทันที");
+  if (error) alert("บันทึกรูปทรงไม่สำเร็จ: " + error.message);
+  else alert("บันทึกรูปทรงพรีวิวแล้ว — ลูกค้าจะเห็นการเปลี่ยนแปลงนี้ในหน้าออกแบบทันที");
 });
 
 /* ---------------- Lightbox ---------------- */
