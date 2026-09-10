@@ -45,6 +45,7 @@
   <nav class="tabs">
     <button class="tab active" id="tab-orders" onclick="switchView('orders')">ออเดอร์</button>
     <button class="tab" id="tab-products" onclick="switchView('products')">สินค้า &amp; สต๊อก</button>
+    <button class="tab" id="tab-assets" onclick="switchView('assets')">ฟอนต์ &amp; อิโมจิ</button>
   </nav>
 
   <main>
@@ -75,6 +76,42 @@
       <div id="product-load-error" style="display:none;"></div>
       <div id="products-list"></div>
       <div id="products-empty-state" style="display:none;">ยังไม่มีสินค้าในระบบ — กด "เพิ่มสินค้าใหม่" เพื่อเริ่มต้น</div>
+    </section>
+
+    <section id="assets-view" style="display:none;">
+      <div class="asset-block">
+        <h3 class="asset-heading">ฟอนต์</h3>
+        <p class="hint-text">ฟอนต์ตั้งต้น 3 แบบ (Classic/Elegant/Modern) ใช้ได้เลยไม่ต้องอัปโหลด — อัปโหลดฟอนต์เพิ่มได้ที่นี่ (.ttf, .otf, .woff, .woff2) ลูกค้าจะเห็นตัวอย่างฟอนต์ในชื่อฟอนต์เองตอนเลือก</p>
+        <div id="fonts-list" class="asset-list"></div>
+        <form id="font-upload-form" class="asset-upload-form">
+          <input id="font-name" placeholder="ชื่อฟอนต์ที่จะให้ลูกค้าเห็น เช่น Sarabun Bold" required>
+          <input type="file" id="font-file" accept=".ttf,.otf,.woff,.woff2" required>
+          <button type="submit" class="primary">+ อัปโหลดฟอนต์</button>
+        </form>
+        <div id="font-upload-error" class="form-error" style="display:none;"></div>
+      </div>
+
+      <div class="asset-block">
+        <h3 class="asset-heading">อิโมจิ (แบบรูปภาพ)</h3>
+        <p class="hint-text">ลูกค้าเลือกได้เฉพาะอิโมจิที่อัปโหลดไว้ที่นี่เท่านั้น (พิมพ์เองไม่ได้) แนะนำใช้รูป PNG พื้นหลังโปร่งใส ขนาดสี่เหลี่ยมจัตุรัส</p>
+        <div id="emojis-list" class="emoji-admin-grid"></div>
+        <form id="emoji-upload-form" class="asset-upload-form">
+          <input id="emoji-name" placeholder="ชื่อ/คำอธิบาย (ไม่บังคับ) เช่น หัวใจสีทอง">
+          <input type="file" id="emoji-file" accept="image/*" required>
+          <button type="submit" class="primary">+ อัปโหลดอิโมจิ</button>
+        </form>
+        <div id="emoji-upload-error" class="form-error" style="display:none;"></div>
+      </div>
+
+      <div class="asset-block">
+        <h3 class="asset-heading">ตั้งค่าข้อความสลัก</h3>
+        <p class="hint-text">จำกัดจำนวนตัวอักษรสูงสุดของข้อความที่ลูกค้าพิมพ์สลัก (ใช้ได้กับทุกสินค้า)</p>
+        <div class="field" style="max-width:220px;">
+          <label for="max-text-length-input">จำนวนตัวอักษรสูงสุด</label>
+          <input type="number" id="max-text-length-input" min="1" max="200" step="1">
+        </div>
+        <button type="button" class="add-product-btn" id="save-max-text-length-btn">บันทึกค่านี้</button>
+      </div>
     </section>
   </main>
 </div>

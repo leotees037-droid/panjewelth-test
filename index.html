@@ -47,12 +47,12 @@
       <p class="preview-disclaimer">* พรีวิวตัวอย่างเท่านั้น ไม่ใช่สินค้าจริง</p>
       <div class="form">
         <div id="engrave-text-field">
-          <label>ข้อความที่ต้องการสลัก</label>
+          <label>ข้อความที่ต้องการสลัก <span id="engrave-text-counter" class="text-counter">0/20</span></label>
           <input id="engrave-text" maxlength="20" placeholder="เช่น Natcha, Aom, Theerapat" oninput="update()">
         </div>
         <div id="engrave-emoji-field">
-          <label>อิโมจิ (ใส่หรือไม่ก็ได้)</label>
-          <input id="engrave-emoji" maxlength="4" placeholder="เช่น ♡ ✦ 🤍" oninput="update()">
+          <label>เลือกอิโมจิ (ใส่หรือไม่ก็ได้)</label>
+          <div id="engrave-emoji-grid" class="emoji-grid"></div>
         </div>
         <div id="engrave-image-field">
           <label>อัปโหลดรูปภาพ (ใส่หรือไม่ก็ได้)</label>
@@ -60,12 +60,7 @@
           <button type="button" id="engrave-image-clear" class="clear-image-btn" style="display:none" onclick="clearEngraveImage()">ลบรูปที่เลือก ✕</button>
         </div>
         <label>ฟอนต์</label>
-        <div class="choices fonts">
-          <button class="selected" onclick="font('serif')">Aa<small>Classic</small></button>
-          <button onclick="font('cursive')">𝒜𝒶<small>Elegant</small></button>
-          <button onclick="font('cursive')">𝓕𝓪<small>Signature</small></button>
-          <button onclick="font('Arial')">Aa<small>Modern</small></button>
-        </div>
+        <select id="engrave-font-select" onchange="onFontSelectChange()"></select>
         <div id="product-options"><!-- เติมโดย renderProductOptions() ตามกลุ่มตัวเลือกจริงของสินค้านี้ --></div>
       </div>
       <p id="variant-stock-msg" class="variant-stock-msg"></p>

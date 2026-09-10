@@ -5,7 +5,12 @@
    ===================================================================== */
 
 let cart = [];
-let currentFont = "serif";
+let currentFontFamily = null;   // ค่า CSS font-family ที่ใช้งานอยู่ (มาจาก dropdown ฟอนต์)
+
+let allFonts = [];              // ฟอนต์ตั้งต้น + ฟอนต์ที่แอดมินอัปโหลด (โหลดจริงผ่าน FontFace แล้ว)
+let allEmojis = [];             // อิโมจิแบบรูปภาพที่แอดมินอัปโหลด
+let selectedEmoji = null;       // อิโมจิที่ลูกค้าเลือกอยู่ (object จาก allEmojis หรือ null)
+let appSettings = { max_text_length: 20 };
 
 let catalog = [];              // สินค้าทั้งหมด (พร้อมรูป/ตัวเลือก/variant) ที่เปิดขายอยู่
 let productsByKey = {};        // key -> product
@@ -169,7 +174,8 @@ function openProductDetail(key) {
   computeAndRenderVariant();
 
   document.getElementById("engrave-text").value = "";
-  document.getElementById("engrave-emoji").value = "";
+  selectedEmoji = null;
+  renderEmojiGrid();
   clearEngraveImage(); // ล้างรูปที่อาจค้างจากสินค้าก่อนหน้า + เรียก update() ให้ในตัว
   show("custom");
 }
@@ -262,14 +268,111 @@ function computeAndRenderVariant() {
 
 /* ---------------- ออกแบบชื่อ + พรีวิว 2D ---------------- */
 function update() {
+  updateTextCounter();
   renderPreview();
 }
 
-function font(f) {
-  currentFont = f;
-  document.querySelectorAll(".fonts button").forEach(b => b.classList.remove("selected"));
-  event.currentTarget.classList.add("selected");
+function updateTextCounter() {
+  const max = (appSettings && appSettings.max_text_length) || 20;
+  const input = document.getElementById("engrave-text");
+  const counter = document.getElementById("engrave-text-counter");
+  if (input && counter) counter.textContent = `${input.value.length}/${max}`;
+}
+
+function applyMaxTextLength() {
+  const max = (appSettings && appSettings.max_text_length) || 20;
+  const input = document.getElementById("engrave-text");
+  if (input) input.maxLength = max;
+  updateTextCounter();
+}
+
+/* ---------------- ฟอนต์ (dropdown โชว์ตัวอย่างฟอนต์ในตัวเอง) ---------------- */
+async function loadFonts() {
+  if (typeof sb === "undefined") return;
+  const { data, error } = await sb
+    .from("fonts")
+    .select("id, name, file_url, storage_path")
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+  if (error) { console.error("โหลดฟอนต์ไม่สำเร็จ:", error.message); return; }
+  allFonts = await loadAllFonts(data || []);
+  populateFontSelect();
+}
+
+function populateFontSelect() {
+  const sel = document.getElementById("engrave-font-select");
+  if (!sel || !allFonts.length) return;
+  sel.innerHTML = allFonts.map(f => {
+    const family = fontFamilyFor(f);
+    return `<option value="${family}" style="font-family:'${family}'">${f.name}</option>`;
+  }).join("");
+
+  const stillExists = currentFontFamily && allFonts.some(f => fontFamilyFor(f) === currentFontFamily);
+  currentFontFamily = stillExists ? currentFontFamily : fontFamilyFor(allFonts[0]);
+  sel.value = currentFontFamily;
   renderPreview();
+}
+
+function onFontSelectChange() {
+  const sel = document.getElementById("engrave-font-select");
+  currentFontFamily = sel.value;
+  renderPreview();
+}
+
+/* ---------------- อิโมจิแบบรูปภาพ (เลือกจากคลังของแอดมินเท่านั้น) ---------------- */
+async function loadEmojis() {
+  if (typeof sb === "undefined") return;
+  const { data, error } = await sb
+    .from("emoji_assets")
+    .select("id, name, image_url, storage_path")
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+  if (error) { console.error("โหลดอิโมจิไม่สำเร็จ:", error.message); return; }
+  allEmojis = data || [];
+  if (selectedEmoji && !allEmojis.some(e => e.id === selectedEmoji.id)) selectedEmoji = null;
+  renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+  const wrap = document.getElementById("engrave-emoji-grid");
+  if (!wrap) return;
+  if (!allEmojis.length) {
+    wrap.innerHTML = `<span class="no-emoji">ยังไม่มีอิโมจิให้เลือก</span>`;
+    return;
+  }
+  wrap.innerHTML = allEmojis.map(e => `
+    <button type="button" class="${selectedEmoji && selectedEmoji.id === e.id ? "selected" : ""}" onclick="selectEmoji('${e.id}')" title="${e.name || ""}">
+      <img src="${e.image_url}" alt="${e.name || ""}">
+    </button>
+  `).join("");
+}
+
+function selectEmoji(id) {
+  selectedEmoji = (selectedEmoji && selectedEmoji.id === id) ? null : (allEmojis.find(e => e.id === id) || null);
+  renderEmojiGrid();
+  update();
+}
+
+/* ---------------- ตั้งค่าระบบ (จำนวนตัวอักษรสูงสุด) ---------------- */
+async function loadAppSettings() {
+  if (typeof sb === "undefined") return;
+  const { data, error } = await sb.from("app_settings").select("max_text_length").eq("id", 1).maybeSingle();
+  if (error) { console.error("โหลดการตั้งค่าไม่สำเร็จ:", error.message); return; }
+  if (data) appSettings.max_text_length = data.max_text_length;
+  applyMaxTextLength();
+}
+
+function subscribeAssetsRealtime() {
+  if (typeof sb === "undefined") return;
+  ["fonts", "emoji_assets", "app_settings"].forEach(table => {
+    sb.channel("storefront-" + table)
+      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        if (table === "fonts") loadFonts();
+        else if (table === "emoji_assets") loadEmojis();
+        else loadAppSettings();
+      })
+      .subscribe();
+  });
 }
 
 function onEngraveImageChange(e) {
@@ -296,18 +399,20 @@ function clearEngraveImage() {
 }
 
 /* ---------------- พรีวิว 2D: รูปทรงสีเงิน + ข้อความ/อิโมจิ/รูปที่ลูกค้าใส่ ---------------- */
-function loadPreviewImage(url, cb) {
-  if (!url) return cb(null);
-  const cached = previewImgCache[url];
-  if (cached && cached.complete) return cb(cached);
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.onload = () => { previewImgCache[url] = img; cb(img); };
-  img.onerror = () => cb(null);
-  img.src = url;
+function loadPreviewImage(url) {
+  return new Promise((resolve) => {
+    if (!url) return resolve(null);
+    const cached = previewImgCache[url];
+    if (cached && cached.complete) return resolve(cached);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { previewImgCache[url] = img; resolve(img); };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
-function renderPreview() {
+async function renderPreview() {
   const canvas = document.getElementById("preview-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -315,19 +420,18 @@ function renderPreview() {
   const flags = currentFeatureFlags();
 
   const text = flags.allow_text ? document.getElementById("engrave-text").value.trim() : "";
-  const emoji = flags.allow_emoji ? document.getElementById("engrave-emoji").value.trim() : "";
-  const isPlaceholder = !text && !emoji && flags.allow_text;
+  const isPlaceholder = !text && flags.allow_text;
   const shapeKey = (currentProduct && currentProduct.preview_shape) || DEFAULT_PREVIEW_SHAPE;
 
-  const draw = (imgEl) => {
-    drawPreviewShape(ctx, W, H, shapeKey, {
-      text, emoji, image: (flags.allow_image ? imgEl : null),
-      fontFamily: currentFont, isPlaceholder
-    });
-  };
+  const [uploadedImg, emojiImg] = await Promise.all([
+    flags.allow_image ? loadPreviewImage(engraveImageDataUrl) : Promise.resolve(null),
+    (flags.allow_emoji && selectedEmoji) ? loadPreviewImage(selectedEmoji.image_url) : Promise.resolve(null)
+  ]);
 
-  if (flags.allow_image && engraveImageDataUrl) loadPreviewImage(engraveImageDataUrl, draw);
-  else draw(null);
+  drawPreviewShape(ctx, W, H, shapeKey, {
+    text, image: uploadedImg, emojiImage: emojiImg,
+    fontFamily: currentFontFamily || "serif", isPlaceholder
+  });
 }
 
 /* ---------------- ตะกร้า ---------------- */
@@ -348,14 +452,16 @@ function add() {
 
   const flags = currentFeatureFlags();
   const text = flags.allow_text ? document.getElementById("engrave-text").value.trim() : "";
-  const emoji = flags.allow_emoji ? document.getElementById("engrave-emoji").value.trim() : "";
-  const displayName = [text, emoji].filter(Boolean).join(" ") || (flags.allow_text ? "Your Name" : "-");
+  const emojiAsset = (flags.allow_emoji && selectedEmoji) ? selectedEmoji : null;
+  const displayName = text || (flags.allow_text ? "Your Name" : "-");
 
   cart.push({
     sku: variant.sku,
     name: displayName,
     engraveText: text,
-    engraveEmoji: emoji,
+    engraveEmojiId: emojiAsset ? emojiAsset.id : null,
+    engraveEmojiUrl: emojiAsset ? emojiAsset.image_url : null,
+    engraveFont: currentFontFamily || "serif",
     // ไฟล์รูปยังไม่อัปโหลดขึ้น storage จนกว่าจะยืนยันการชำระเงิน (uploadCartEngraveImages)
     engraveImageFile: flags.allow_image ? engraveImageFile : null,
     engraveImageDataUrl: flags.allow_image ? engraveImageDataUrl : null,
@@ -373,7 +479,7 @@ function cartTotal() {
 function render() {
   document.getElementById("count").textContent = cart.length;
   document.getElementById("items").innerHTML = cart.length
-    ? cart.map(x => `<div class="item"><span>${x.label}<br><b>${x.name}</b>${x.engraveImageDataUrl ? `<br><img src="${x.engraveImageDataUrl}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;margin-top:4px;">` : ""}</span><b>฿${x.price.toLocaleString()}</b></div>`).join("")
+    ? cart.map(x => `<div class="item"><span>${x.label}<br><b>${x.name}</b>${x.engraveEmojiUrl ? ` <img src="${x.engraveEmojiUrl}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;">` : ""}${x.engraveImageDataUrl ? `<br><img src="${x.engraveImageDataUrl}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;margin-top:4px;">` : ""}</span><b>฿${x.price.toLocaleString()}</b></div>`).join("")
     : "ยังไม่มีสินค้าในตะกร้า";
 
   const totalBox = document.getElementById("cartTotal");
@@ -515,3 +621,7 @@ function backToHome() {
 
 loadCatalog();
 subscribeCatalogRealtime();
+loadFonts();
+loadEmojis();
+loadAppSettings();
+subscribeAssetsRealtime();

@@ -131,7 +131,7 @@ function psFillEngravedText(ctx, text, cx, cy, maxW, font) {
 
 /* =====================================================================
    drawPreviewShape — ฟังก์ชันหลัก
-   content = { text, emoji, image: HTMLImageElement|null, fontFamily, isPlaceholder }
+   content = { text, image: HTMLImageElement|null, emojiImage: HTMLImageElement|null, fontFamily, isPlaceholder }
    ===================================================================== */
 function drawPreviewShape(ctx, W, H, shapeKey, content) {
   const shape = PREVIEW_SHAPES[shapeKey] || PREVIEW_SHAPES[DEFAULT_PREVIEW_SHAPE];
@@ -141,10 +141,9 @@ function drawPreviewShape(ctx, W, H, shapeKey, content) {
   const x = W / 2 - box.w / 2, y = H / 2 - box.h / 2;
 
   const text = content.text || "";
-  const emoji = content.emoji || "";
-  const hasLabel = !!(text || emoji);
-  const label = hasLabel ? [text, emoji].filter(Boolean).join("  ") : (content.isPlaceholder ? "Your Name" : "");
-  const textColor = (!hasLabel && content.isPlaceholder) ? "#9a9a9a" : "#2f3133";
+  const hasText = !!text;
+  const label = hasText ? text : (content.isPlaceholder ? "Your Name" : "");
+  const textColor = (!hasText && content.isPlaceholder) ? "#9a9a9a" : "#2f3133";
   const fontFamily = content.fontFamily || "serif";
 
   psDrawShapeBase(ctx, shape.kind, x, y, box.w, box.h);
@@ -157,18 +156,25 @@ function drawPreviewShape(ctx, W, H, shapeKey, content) {
   else if (shape.kind === "star") zone = psZoneForStar(x, y, box.w, box.h);
   else zone = psZoneForRect(x, y, box.w, box.h);
 
-  let textX = zone.x, textW = zone.w;
+  // เรียง: [รูปที่ลูกค้าอัปโหลด] ... ข้อความตรงกลาง ... [อิโมจิรูปภาพ]
+  let leftX = zone.x, rightX = zone.x + zone.w;
+
   if (content.image) {
-    const size = Math.min(zone.h, zone.w * 0.32);
-    ctx.drawImage(content.image, zone.x, zone.y + (zone.h - size) / 2, size, size);
-    textX = zone.x + size + zone.w * 0.06;
-    textW = zone.w - size - zone.w * 0.06;
+    const size = Math.min(zone.h, zone.w * 0.3);
+    ctx.drawImage(content.image, leftX, zone.y + (zone.h - size) / 2, size, size);
+    leftX += size + zone.w * 0.05;
+  }
+  if (content.emojiImage) {
+    const size = Math.min(zone.h * 0.85, zone.w * 0.22);
+    ctx.drawImage(content.emojiImage, rightX - size, zone.y + (zone.h - size) / 2, size, size);
+    rightX -= size + zone.w * 0.05;
   }
 
   if (!label) return;
+  const textW = Math.max(10, rightX - leftX);
   const fontSize = Math.max(13, zone.h * 0.58);
   const font = `${fontSize}px ${fontFamily}, serif`;
-  const cx = textX + textW / 2, cy = zone.y + zone.h / 2, maxW = Math.max(textW, 10);
+  const cx = leftX + textW / 2, cy = zone.y + zone.h / 2, maxW = textW;
 
   if (textColor === "#2f3133") psFillEngravedText(ctx, label, cx, cy, maxW, font);
   else {
@@ -180,4 +186,46 @@ function drawPreviewShape(ctx, W, H, shapeKey, content) {
     ctx.fillText(label, cx, cy, maxW);
     ctx.restore();
   }
+}
+
+/* =====================================================================
+   ฟอนต์ — ฟอนต์ตั้งต้น 3 แบบ (ฝังในโค้ด) + ฟอนต์ที่แอดมินอัปโหลดเพิ่มได้
+   ===================================================================== */
+const BUILTIN_FONTS = [
+  { id: "builtin-serif",   name: "Classic (ตัวเรียบหรู)", family: "serif",             builtin: true },
+  { id: "builtin-cursive", name: "Elegant (ลายมือ)",       family: "cursive",           builtin: true },
+  { id: "builtin-modern",  name: "Modern (ตัวพิมพ์)",       family: "Arial, sans-serif", builtin: true }
+];
+
+function customFontFamilyName(font) {
+  return "customfont-" + String(font.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
+}
+
+function fontFamilyFor(font) {
+  return font.builtin ? font.family : customFontFamilyName(font);
+}
+
+const _loadedFontKeys = new Set();
+
+// โหลดฟอนต์ที่แอดมินอัปโหลด (ไฟล์จริง) ผ่าน FontFace API ให้ใช้ได้ทั้งใน <select> และ canvas
+async function ensureFontLoaded(font) {
+  if (font.builtin) return font.family;
+  const family = customFontFamilyName(font);
+  const key = family + "|" + font.file_url;
+  if (_loadedFontKeys.has(key)) return family;
+  try {
+    const face = new FontFace(family, `url(${JSON.stringify(font.file_url)})`);
+    await face.load();
+    document.fonts.add(face);
+    _loadedFontKeys.add(key);
+  } catch (err) {
+    console.error("โหลดฟอนต์ไม่สำเร็จ:", font.name, err);
+  }
+  return family;
+}
+
+async function loadAllFonts(customFonts) {
+  const list = [...BUILTIN_FONTS, ...customFonts];
+  await Promise.all(list.map(f => ensureFontLoaded(f)));
+  return list;
 }

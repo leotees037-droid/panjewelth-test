@@ -40,6 +40,14 @@ header{height:62px;background:#080808;color:white;display:flex;align-items:cente
 .preview-2d canvas{width:100%;height:100%;display:block}
 .preview-disclaimer{text-align:center;color:#999;font-size:11px;margin:0 0 14px}
 #engrave-text-field,#engrave-emoji-field,#engrave-image-field{margin-bottom:12px}
+#engrave-text-field label{display:flex;justify-content:space-between;align-items:baseline}
+.text-counter{font-weight:400;font-size:11px;color:#999}
+select{width:100%;padding:11px;border:1px solid #ddd;border-radius:7px;font-size:14px;background:#fff;-webkit-appearance:none;appearance:none}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:8px}
+.emoji-grid button{width:44px;height:44px;padding:5px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer}
+.emoji-grid button.selected{border:2px solid #c99d4d}
+.emoji-grid button img{width:100%;height:100%;object-fit:contain;display:block}
+.emoji-grid .no-emoji{font-size:10px;color:#999}
 .clear-image-btn{margin-top:6px;border:1px solid #f1c7bd;background:#fff;color:#b3492f;border-radius:7px;padding:7px 10px;font-size:11.5px;cursor:pointer}
 .add:disabled{background:#d8cba3;cursor:not-allowed}.preview{height:185px;border-radius:12px;background:radial-gradient(circle,#fff,#d1cdc5);display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:inset 0 0 35px #aaa}.preview span{background:#eee;border:2px solid #aaa;padding:18px 35px;border-radius:6px;font-size:27px;box-shadow:0 8px 15px #999}.form{background:#fff;border-radius:12px;padding:14px;border:1px solid #e6e2da}label{font-size:12px;font-weight:700;display:block;margin:5px 0 7px}input{width:100%;padding:11px;border:1px solid #ddd;border-radius:7px;font-size:14px}.choices{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.choices button{border:1px solid #ddd;background:#fff;border-radius:7px;padding:7px;font-size:18px}.choices button.selected{border:2px solid #c99d4d}.choices small{display:block;font-size:8px;color:#777;margin-top:2px}.add{margin-top:12px;background:#111;color:#fff}.add span{float:right;color:#e0b75d}.items{background:#fff;border:1px solid #e2ded6;border-radius:10px;min-height:90px;padding:14px;margin-bottom:15px}.item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;font-size:13px}.note{text-align:center;color:#999;font-size:11px}.about-card{background:#fff;border-radius:12px;padding:22px;line-height:1.5}.about-card b{display:block;margin-top:10px}.about-card p{margin:2px 0;color:#777}
 .cart-total{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #e2ded6;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;font-weight:700}.cart-total b{color:#b78e48;font-size:16px}

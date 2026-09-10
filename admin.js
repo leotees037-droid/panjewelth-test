@@ -35,6 +35,10 @@ let productsChannels = [];     // realtime channels หลายตัวสำ�
 let currentView = "orders";
 let currentManageProduct = null;
 
+let allFontsAdmin = [];        // ฟอนต์ตั้งต้น + ฟอนต์ที่อัปโหลด (โหลดผ่าน FontFace แล้ว พร้อมใช้พรีวิว)
+let allEmojisAdmin = [];       // อิโมจิแบบรูปภาพทั้งหมด (รวมที่ถูกปิดใช้งานด้วย เพราะแอดมินต้องจัดการได้ทุกตัว)
+let assetsChannels = [];       // realtime channels สำหรับ fonts/emoji_assets/app_settings
+
 const $ = (sel) => document.querySelector(sel);
 
 /* ---------------- Auth ---------------- */
@@ -63,6 +67,8 @@ function showLogin() {
   if (channel) { sb.removeChannel(channel); channel = null; }
   productsChannels.forEach(ch => sb.removeChannel(ch));
   productsChannels = [];
+  assetsChannels.forEach(ch => sb.removeChannel(ch));
+  assetsChannels = [];
 }
 
 function showDashboard(session) {
@@ -73,6 +79,10 @@ function showDashboard(session) {
   subscribeRealtime();
   loadProducts();
   subscribeProductsRealtime();
+  loadFontsAdmin();
+  loadEmojisAdmin();
+  loadAppSettingsAdmin();
+  subscribeAssetsRealtimeAdmin();
 }
 
 /* ---------------- View switching ---------------- */
@@ -80,9 +90,11 @@ function switchView(view) {
   currentView = view;
   $("#tab-orders").classList.toggle("active", view === "orders");
   $("#tab-products").classList.toggle("active", view === "products");
+  $("#tab-assets").classList.toggle("active", view === "assets");
   $("#orders-view").style.display = view === "orders" ? "block" : "none";
   $("#products-view").style.display = view === "products" ? "block" : "none";
-  $("#view-title").textContent = view === "orders" ? "ออเดอร์ล่าสุด" : "สินค้า & สต๊อก";
+  $("#assets-view").style.display = view === "assets" ? "block" : "none";
+  $("#view-title").textContent = view === "orders" ? "ออเดอร์ล่าสุด" : view === "products" ? "สินค้า & สต๊อก" : "ฟอนต์ & อิโมจิ";
 }
 
 $("#login-form").addEventListener("submit", async (e) => {
@@ -892,6 +904,154 @@ $("#area-save-btn").addEventListener("click", async () => {
   if (error) alert("บันทึกรูปทรงไม่สำเร็จ: " + error.message);
   else alert("บันทึกรูปทรงพรีวิวแล้ว — ลูกค้าจะเห็นการเปลี่ยนแปลงนี้ในหน้าออกแบบทันที");
 });
+
+/* =====================================================================
+   ฟอนต์ & อิโมจิ & ตั้งค่า (แท็บใหม่)
+   ===================================================================== */
+
+/* ---------------- ฟอนต์ ---------------- */
+async function loadFontsAdmin() {
+  const { data, error } = await sb.from("fonts").select("id, name, file_url, storage_path, sort_order").order("sort_order", { ascending: true });
+  if (error) { console.error("โหลดฟอนต์ไม่สำเร็จ:", error.message); return; }
+  allFontsAdmin = await loadAllFonts(data || []); // ใช้ engine เดียวกับหน้าร้าน โหลด FontFace จริงก่อนพรีวิว
+  renderFontsAdmin();
+}
+
+function renderFontsAdmin() {
+  const wrap = $("#fonts-list");
+  wrap.innerHTML = allFontsAdmin.map(f => {
+    const family = fontFamilyFor(f);
+    return `
+      <div class="asset-item">
+        <div>
+          <div class="asset-sample" style="font-family:'${family}'">${escapeHtml(f.name)}</div>
+          <div class="asset-meta">${f.builtin ? "ฟอนต์ตั้งต้น (ลบไม่ได้)" : "อัปโหลดเอง"}</div>
+        </div>
+        ${f.builtin ? "" : `<button type="button" class="danger" data-id="${f.id}" data-path="${escapeHtml(f.storage_path)}">ลบ</button>`}
+      </div>
+    `;
+  }).join("");
+
+  wrap.querySelectorAll("button.danger").forEach(btn => {
+    btn.addEventListener("click", () => deleteFontAdmin(btn.dataset.id, btn.dataset.path));
+  });
+}
+
+async function deleteFontAdmin(id, storagePath) {
+  if (!confirm('ลบฟอนต์นี้ใช่หรือไม่? ลูกค้าจะเลือกฟอนต์นี้ไม่ได้อีก (ออเดอร์เก่าที่เคยใช้ฟอนต์นี้จะไม่กระทบ)')) return;
+  if (storagePath) await sb.storage.from("fonts").remove([storagePath]);
+  const { error } = await sb.from("fonts").delete().eq("id", id);
+  if (error) alert("ลบฟอนต์ไม่สำเร็จ: " + error.message);
+}
+
+$("#font-upload-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = $("#font-upload-error");
+  errBox.style.display = "none";
+  const name = $("#font-name").value.trim();
+  const file = $("#font-file").files[0];
+  if (!name || !file) return;
+
+  const extMatch = file.name.match(/\.(ttf|otf|woff2|woff)$/i);
+  const ext = extMatch ? extMatch[1].toLowerCase() : "ttf";
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error: upErr } = await sb.storage.from("fonts").upload(path, file);
+  if (upErr) { errBox.textContent = "อัปโหลดฟอนต์ไม่สำเร็จ: " + upErr.message; errBox.style.display = "block"; return; }
+  const { data: urlData } = sb.storage.from("fonts").getPublicUrl(path);
+
+  const { error: insErr } = await sb.from("fonts").insert({ name, file_url: urlData.publicUrl, storage_path: path });
+  if (insErr) { errBox.textContent = "บันทึกฟอนต์ไม่สำเร็จ: " + insErr.message; errBox.style.display = "block"; return; }
+
+  $("#font-upload-form").reset();
+});
+
+/* ---------------- อิโมจิแบบรูปภาพ ---------------- */
+async function loadEmojisAdmin() {
+  const { data, error } = await sb.from("emoji_assets").select("id, name, image_url, storage_path, sort_order").order("sort_order", { ascending: true });
+  if (error) { console.error("โหลดอิโมจิไม่สำเร็จ:", error.message); return; }
+  allEmojisAdmin = data || [];
+  renderEmojisAdmin();
+}
+
+function renderEmojisAdmin() {
+  const wrap = $("#emojis-list");
+  if (!allEmojisAdmin.length) {
+    wrap.innerHTML = `<p class="hint-text">ยังไม่มีอิโมจิในระบบ</p>`;
+    return;
+  }
+  wrap.innerHTML = allEmojisAdmin.map(e => `
+    <div class="emoji-admin-item">
+      <img src="${escapeHtml(e.image_url)}" alt="${escapeHtml(e.name || "")}">
+      <button type="button" class="emoji-remove" data-id="${e.id}" data-path="${escapeHtml(e.storage_path)}" title="ลบ">✕</button>
+    </div>
+  `).join("");
+
+  wrap.querySelectorAll(".emoji-remove").forEach(btn => {
+    btn.addEventListener("click", () => deleteEmojiAdmin(btn.dataset.id, btn.dataset.path));
+  });
+}
+
+async function deleteEmojiAdmin(id, storagePath) {
+  if (!confirm("ลบอิโมจินี้ใช่หรือไม่?")) return;
+  if (storagePath) await sb.storage.from("emojis").remove([storagePath]);
+  const { error } = await sb.from("emoji_assets").delete().eq("id", id);
+  if (error) alert("ลบอิโมจิไม่สำเร็จ: " + error.message);
+}
+
+$("#emoji-upload-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = $("#emoji-upload-error");
+  errBox.style.display = "none";
+  const name = $("#emoji-name").value.trim() || null;
+  const file = $("#emoji-file").files[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { errBox.textContent = "กรุณาเลือกไฟล์รูปภาพเท่านั้น"; errBox.style.display = "block"; return; }
+
+  const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|gif)$/i);
+  const ext = extMatch ? extMatch[1].toLowerCase() : (file.type.split("/")[1] || "png");
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error: upErr } = await sb.storage.from("emojis").upload(path, file);
+  if (upErr) { errBox.textContent = "อัปโหลดอิโมจิไม่สำเร็จ: " + upErr.message; errBox.style.display = "block"; return; }
+  const { data: urlData } = sb.storage.from("emojis").getPublicUrl(path);
+
+  const { error: insErr } = await sb.from("emoji_assets").insert({ name, image_url: urlData.publicUrl, storage_path: path });
+  if (insErr) { errBox.textContent = "บันทึกอิโมจิไม่สำเร็จ: " + insErr.message; errBox.style.display = "block"; return; }
+
+  $("#emoji-upload-form").reset();
+});
+
+/* ---------------- ตั้งค่าข้อความสลัก (จำนวนตัวอักษรสูงสุด) ---------------- */
+async function loadAppSettingsAdmin() {
+  const { data, error } = await sb.from("app_settings").select("max_text_length").eq("id", 1).maybeSingle();
+  if (error) { console.error("โหลดการตั้งค่าไม่สำเร็จ:", error.message); return; }
+  if (data) $("#max-text-length-input").value = data.max_text_length;
+}
+
+$("#save-max-text-length-btn").addEventListener("click", async () => {
+  const val = Number($("#max-text-length-input").value);
+  if (!val || val < 1) { alert("กรุณาใส่จำนวนตัวอักษรที่ถูกต้อง (มากกว่า 0)"); return; }
+  const btn = $("#save-max-text-length-btn");
+  btn.disabled = true;
+  const { error } = await sb.from("app_settings").update({ max_text_length: val, updated_at: new Date().toISOString() }).eq("id", 1);
+  btn.disabled = false;
+  if (error) alert("บันทึกไม่สำเร็จ: " + error.message);
+  else alert("บันทึกจำนวนตัวอักษรสูงสุดแล้ว — มีผลกับหน้าร้านทันที");
+});
+
+function subscribeAssetsRealtimeAdmin() {
+  assetsChannels.forEach(ch => sb.removeChannel(ch));
+  assetsChannels = ["fonts", "emoji_assets", "app_settings"].map(table =>
+    sb.channel("admin-" + table)
+      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        if (table === "fonts") loadFontsAdmin();
+        else if (table === "emoji_assets") loadEmojisAdmin();
+        else loadAppSettingsAdmin();
+      })
+      .subscribe()
+  );
+}
 
 /* ---------------- Lightbox ---------------- */
 function openLightbox(src) {

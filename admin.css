@@ -393,6 +393,44 @@ main{
 .area-preview-wrap canvas{width:100%;height:100%;display:block;}
 .preview-disclaimer{text-align:center;color:#999;font-size:11.5px;margin:8px 0 0;}
 
+/* ---------- ฟอนต์ & อิโมจิ (แท็บใหม่) ---------- */
+.asset-block{
+  background:#fff;border:1px solid #e6e2da;border-radius:14px;
+  padding:18px 20px;margin-bottom:16px;
+}
+.asset-heading{margin:0 0 4px;font-size:15px;}
+.asset-list{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+.asset-item{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid #e6e2da;border-radius:10px;padding:10px 14px;background:#faf9f6;
+}
+.asset-item .asset-sample{font-size:16px;color:#111;}
+.asset-item .asset-meta{font-size:11px;color:#999;}
+.asset-item .danger{
+  border:1px solid #f1c7bd;color:#b3492f;background:#fff;border-radius:8px;
+  padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;
+}
+.asset-upload-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.asset-upload-form input[type="text"],.asset-upload-form input:not([type="file"]):not([type="submit"]){
+  flex:1;min-width:160px;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13.5px;
+}
+.asset-upload-form input[type="file"]{
+  flex:1;min-width:200px;padding:8px;border:1px dashed #cbb98a;border-radius:8px;font-size:12.5px;background:#fbf8f1;
+}
+.asset-upload-form button{white-space:nowrap;}
+.emoji-admin-grid{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;}
+.emoji-admin-item{
+  position:relative;width:64px;
+  border:1px solid #e6e2da;border-radius:10px;padding:8px;background:#faf9f6;
+  text-align:center;
+}
+.emoji-admin-item img{width:100%;height:40px;object-fit:contain;display:block;}
+.emoji-admin-item .emoji-remove{
+  position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;
+  border:none;background:rgba(179,73,47,.9);color:#fff;font-size:10px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+
 
 .stats{
   display:grid;
