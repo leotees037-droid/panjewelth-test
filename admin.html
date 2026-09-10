@@ -102,16 +102,6 @@
         </form>
         <div id="emoji-upload-error" class="form-error" style="display:none;"></div>
       </div>
-
-      <div class="asset-block">
-        <h3 class="asset-heading">ตั้งค่าข้อความสลัก</h3>
-        <p class="hint-text">จำกัดจำนวนตัวอักษรสูงสุดของข้อความที่ลูกค้าพิมพ์สลัก (ใช้ได้กับทุกสินค้า)</p>
-        <div class="field" style="max-width:220px;">
-          <label for="max-text-length-input">จำนวนตัวอักษรสูงสุด</label>
-          <input type="number" id="max-text-length-input" min="1" max="200" step="1">
-        </div>
-        <button type="button" class="add-product-btn" id="save-max-text-length-btn">บันทึกค่านี้</button>
-      </div>
     </section>
   </main>
 </div>
@@ -142,6 +132,10 @@
         <div class="checkbox-field" style="margin-bottom:8px;"><label><input id="p-allow-text" type="checkbox" checked> ให้ลูกค้าใส่ข้อความสลัก</label></div>
         <div class="checkbox-field" style="margin-bottom:8px;"><label><input id="p-allow-emoji" type="checkbox" checked> ให้ลูกค้าใส่อิโมจิ</label></div>
         <div class="checkbox-field"><label><input id="p-allow-image" type="checkbox"> ให้ลูกค้าอัปโหลดรูปภาพ</label></div>
+      </div>
+      <div class="field">
+        <label for="p-max-text-length">จำนวนตัวอักษรสูงสุดของข้อความสลัก (ตั้งแยกต่อสินค้า เพราะพื้นที่สลักไม่เท่ากัน)</label>
+        <input type="number" id="p-max-text-length" min="1" max="200" step="1" value="20">
       </div>
       <div id="product-form-error" class="form-error" style="display:none;"></div>
       <div class="modal-actions">

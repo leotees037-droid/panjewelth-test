@@ -10,7 +10,6 @@ let currentFontFamily = null;   // ค่า CSS font-family ที่ใช้�
 let allFonts = [];              // ฟอนต์ตั้งต้น + ฟอนต์ที่แอดมินอัปโหลด (โหลดจริงผ่าน FontFace แล้ว)
 let allEmojis = [];             // อิโมจิแบบรูปภาพที่แอดมินอัปโหลด
 let selectedEmoji = null;       // อิโมจิที่ลูกค้าเลือกอยู่ (object จาก allEmojis หรือ null)
-let appSettings = { max_text_length: 20 };
 
 let catalog = [];              // สินค้าทั้งหมด (พร้อมรูป/ตัวเลือก/variant) ที่เปิดขายอยู่
 let productsByKey = {};        // key -> product
@@ -45,7 +44,7 @@ async function loadCatalog() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
-      allow_text, allow_emoji, allow_image, preview_shape,
+      allow_text, allow_emoji, allow_image, preview_shape, max_text_length,
       product_images ( id, url, sort_order ),
       product_options (
         id, name, sort_order,
@@ -86,6 +85,7 @@ async function loadCatalog() {
       id: p.id, key: p.key, name: p.name, description: p.description,
       allow_text: p.allow_text !== false, allow_emoji: p.allow_emoji !== false, allow_image: !!p.allow_image,
       preview_shape: p.preview_shape || DEFAULT_PREVIEW_SHAPE,
+      max_text_length: p.max_text_length || 20,
       images, options, variants
     };
   });
@@ -174,6 +174,7 @@ function openProductDetail(key) {
   computeAndRenderVariant();
 
   document.getElementById("engrave-text").value = "";
+  applyMaxTextLength();
   selectedEmoji = null;
   renderEmojiGrid();
   clearEngraveImage(); // ล้างรูปที่อาจค้างจากสินค้าก่อนหน้า + เรียก update() ให้ในตัว
@@ -273,14 +274,14 @@ function update() {
 }
 
 function updateTextCounter() {
-  const max = (appSettings && appSettings.max_text_length) || 20;
+  const max = (currentProduct && currentProduct.max_text_length) || 20;
   const input = document.getElementById("engrave-text");
   const counter = document.getElementById("engrave-text-counter");
   if (input && counter) counter.textContent = `${input.value.length}/${max}`;
 }
 
 function applyMaxTextLength() {
-  const max = (appSettings && appSettings.max_text_length) || 20;
+  const max = (currentProduct && currentProduct.max_text_length) || 20;
   const input = document.getElementById("engrave-text");
   if (input) input.maxLength = max;
   updateTextCounter();
@@ -353,23 +354,13 @@ function selectEmoji(id) {
   update();
 }
 
-/* ---------------- ตั้งค่าระบบ (จำนวนตัวอักษรสูงสุด) ---------------- */
-async function loadAppSettings() {
-  if (typeof sb === "undefined") return;
-  const { data, error } = await sb.from("app_settings").select("max_text_length").eq("id", 1).maybeSingle();
-  if (error) { console.error("โหลดการตั้งค่าไม่สำเร็จ:", error.message); return; }
-  if (data) appSettings.max_text_length = data.max_text_length;
-  applyMaxTextLength();
-}
-
 function subscribeAssetsRealtime() {
   if (typeof sb === "undefined") return;
-  ["fonts", "emoji_assets", "app_settings"].forEach(table => {
+  ["fonts", "emoji_assets"].forEach(table => {
     sb.channel("storefront-" + table)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => {
         if (table === "fonts") loadFonts();
-        else if (table === "emoji_assets") loadEmojis();
-        else loadAppSettings();
+        else loadEmojis();
       })
       .subscribe();
   });
@@ -623,5 +614,4 @@ loadCatalog();
 subscribeCatalogRealtime();
 loadFonts();
 loadEmojis();
-loadAppSettings();
 subscribeAssetsRealtime();

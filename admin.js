@@ -37,7 +37,7 @@ let currentManageProduct = null;
 
 let allFontsAdmin = [];        // ฟอนต์ตั้งต้น + ฟอนต์ที่อัปโหลด (โหลดผ่าน FontFace แล้ว พร้อมใช้พรีวิว)
 let allEmojisAdmin = [];       // อิโมจิแบบรูปภาพทั้งหมด (รวมที่ถูกปิดใช้งานด้วย เพราะแอดมินต้องจัดการได้ทุกตัว)
-let assetsChannels = [];       // realtime channels สำหรับ fonts/emoji_assets/app_settings
+let assetsChannels = [];       // realtime channels สำหรับ fonts/emoji_assets
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -81,7 +81,6 @@ function showDashboard(session) {
   subscribeProductsRealtime();
   loadFontsAdmin();
   loadEmojisAdmin();
-  loadAppSettingsAdmin();
   subscribeAssetsRealtimeAdmin();
 }
 
@@ -271,7 +270,7 @@ async function loadProducts() {
     .from("products")
     .select(`
       id, key, name, description, active, sort_order,
-      allow_text, allow_emoji, allow_image, preview_shape,
+      allow_text, allow_emoji, allow_image, preview_shape, max_text_length,
       product_images ( id, url, storage_path, sort_order ),
       product_options (
         id, name, sort_order,
@@ -313,6 +312,7 @@ async function loadProducts() {
       id: p.id, key: p.key, name: p.name, description: p.description, active: p.active,
       allow_text: p.allow_text !== false, allow_emoji: p.allow_emoji !== false, allow_image: !!p.allow_image,
       preview_shape: p.preview_shape || DEFAULT_PREVIEW_SHAPE,
+      max_text_length: p.max_text_length || 20,
       images, options, variants
     };
   });
@@ -365,7 +365,7 @@ function renderProducts() {
           : `<div class="pc-thumb"></div>`}
         <div>
           <div class="pc-name">${escapeHtml(p.name)}${p.active ? "" : " (ปิดขาย)"}</div>
-          <div class="pc-key">key: ${escapeHtml(p.key)} • ${p.options.length} กลุ่มตัวเลือก • ${p.variants.length} ตัวเลือกย่อย • สลัก: ${[p.allow_text && "ข้อความ", p.allow_emoji && "อิโมจิ", p.allow_image && "รูปภาพ"].filter(Boolean).join("/") || "ปิดทั้งหมด"} • ทรง: ${(PREVIEW_SHAPES[p.preview_shape] || {}).label || p.preview_shape}</div>
+          <div class="pc-key">key: ${escapeHtml(p.key)} • ${p.options.length} กลุ่มตัวเลือก • ${p.variants.length} ตัวเลือกย่อย • สลัก: ${[p.allow_text && "ข้อความ", p.allow_emoji && "อิโมจิ", p.allow_image && "รูปภาพ"].filter(Boolean).join("/") || "ปิดทั้งหมด"} (สูงสุด ${p.max_text_length} ตัวอักษร) • ทรง: ${(PREVIEW_SHAPES[p.preview_shape] || {}).label || p.preview_shape}</div>
         </div>
       </div>
       <div class="pc-price">สต๊อกรวม ${totalStock.toLocaleString()} ชิ้น</div>
@@ -403,6 +403,7 @@ function openProductForm(product) {
     $("#p-allow-text").checked = product.allow_text !== false;
     $("#p-allow-emoji").checked = product.allow_emoji !== false;
     $("#p-allow-image").checked = !!product.allow_image;
+    $("#p-max-text-length").value = product.max_text_length || 20;
   } else {
     $("#product-form-title").textContent = "เพิ่มสินค้าใหม่";
     $("#p-id").value = "";
@@ -411,6 +412,7 @@ function openProductForm(product) {
     $("#p-allow-text").checked = true;
     $("#p-allow-emoji").checked = true;
     $("#p-allow-image").checked = false;
+    $("#p-max-text-length").value = 20;
   }
   $("#product-modal").style.display = "flex";
 }
@@ -436,8 +438,15 @@ $("#product-form").addEventListener("submit", async (e) => {
     active: $("#p-active").checked,
     allow_text: $("#p-allow-text").checked,
     allow_emoji: $("#p-allow-emoji").checked,
-    allow_image: $("#p-allow-image").checked
+    allow_image: $("#p-allow-image").checked,
+    max_text_length: Number($("#p-max-text-length").value) || 20
   };
+
+  if (payload.max_text_length < 1) {
+    errBox.textContent = "จำนวนตัวอักษรสูงสุดต้องมากกว่า 0";
+    errBox.style.display = "block";
+    return;
+  }
 
   if (!/^[a-z0-9_-]+$/.test(payload.key)) {
     errBox.textContent = "รหัสสินค้า (key) ใช้ได้เฉพาะตัวอักษรเล็ก a-z, ตัวเลข, - และ _ เท่านั้น";
@@ -453,7 +462,8 @@ $("#product-form").addEventListener("submit", async (e) => {
       active: payload.active,
       allow_text: payload.allow_text,
       allow_emoji: payload.allow_emoji,
-      allow_image: payload.allow_image
+      allow_image: payload.allow_image,
+      max_text_length: payload.max_text_length
     }).eq("id", id));
   } else {
     ({ error } = await sb.from("products").insert(payload));
@@ -1022,32 +1032,13 @@ $("#emoji-upload-form").addEventListener("submit", async (e) => {
   $("#emoji-upload-form").reset();
 });
 
-/* ---------------- ตั้งค่าข้อความสลัก (จำนวนตัวอักษรสูงสุด) ---------------- */
-async function loadAppSettingsAdmin() {
-  const { data, error } = await sb.from("app_settings").select("max_text_length").eq("id", 1).maybeSingle();
-  if (error) { console.error("โหลดการตั้งค่าไม่สำเร็จ:", error.message); return; }
-  if (data) $("#max-text-length-input").value = data.max_text_length;
-}
-
-$("#save-max-text-length-btn").addEventListener("click", async () => {
-  const val = Number($("#max-text-length-input").value);
-  if (!val || val < 1) { alert("กรุณาใส่จำนวนตัวอักษรที่ถูกต้อง (มากกว่า 0)"); return; }
-  const btn = $("#save-max-text-length-btn");
-  btn.disabled = true;
-  const { error } = await sb.from("app_settings").update({ max_text_length: val, updated_at: new Date().toISOString() }).eq("id", 1);
-  btn.disabled = false;
-  if (error) alert("บันทึกไม่สำเร็จ: " + error.message);
-  else alert("บันทึกจำนวนตัวอักษรสูงสุดแล้ว — มีผลกับหน้าร้านทันที");
-});
-
 function subscribeAssetsRealtimeAdmin() {
   assetsChannels.forEach(ch => sb.removeChannel(ch));
-  assetsChannels = ["fonts", "emoji_assets", "app_settings"].map(table =>
+  assetsChannels = ["fonts", "emoji_assets"].map(table =>
     sb.channel("admin-" + table)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => {
         if (table === "fonts") loadFontsAdmin();
-        else if (table === "emoji_assets") loadEmojisAdmin();
-        else loadAppSettingsAdmin();
+        else loadEmojisAdmin();
       })
       .subscribe()
   );
